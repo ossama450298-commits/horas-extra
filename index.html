@@ -11,147 +11,229 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <style>
 :root{
-  --bg:#E8ECF0; --paper:#FFFFFF; --ink:#17212C; --muted:#586676; --line:#CDD5DE;
-  --accent:#1D4ED8; --accent-soft:#E3EAFD; --plus:#11804E; --plus-soft:#E1F3EA;
-  --minus:#BE3A2E; --minus-soft:#FBE7E4; --warn:#9A6512; --warn-soft:#FBF0DC;
-  color-scheme: light;
+  --bg:#EEF1F6; --paper:#FFFFFF; --ink:#0F1B2D; --muted:#5A6880; --line:#DCE2EA;
+  --accent:#2F5BEA; --accent-ink:#FFFFFF; --accent-soft:#E6ECFE;
+  --plus:#0E8A55; --plus-soft:#E2F5EC; --minus:#D1453B; --minus-soft:#FCE9E7;
+  --warn:#A16A0E; --warn-soft:#FCF1DC;
+  --hero:#0E1A2B; --hero-ink:#F2F5FA; --hero-muted:#9AA9C0; --hero-accent:#8FB0FF;
+  --shadow:0 1px 2px rgba(15,27,45,.05),0 10px 30px -12px rgba(15,27,45,.18);
+  color-scheme:light;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0F151C; --paper:#17202A; --ink:#E5EBF1; --muted:#93A1B0; --line:#2B3845;
-    --accent:#86A6FF; --accent-soft:#1D2A4A; --plus:#44CC8A; --plus-soft:#14301F;
-    --minus:#F2766A; --minus-soft:#3A1C1A; --warn:#E8B451; --warn-soft:#352812;
-    color-scheme: dark;
+    --bg:#0B111A; --paper:#131C28; --ink:#E7ECF3; --muted:#94A3B8; --line:#243245;
+    --accent:#7C9BFF; --accent-ink:#0B111A; --accent-soft:#1A2644;
+    --plus:#45D08F; --plus-soft:#12301F; --minus:#F47C70; --minus-soft:#3A1B19;
+    --warn:#EBB650; --warn-soft:#33270F;
+    --hero:#060B12; --hero-ink:#EEF2F8; --hero-muted:#8696AD; --hero-accent:#8FB0FF;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0F151C; --paper:#17202A; --ink:#E5EBF1; --muted:#93A1B0; --line:#2B3845;
-  --accent:#86A6FF; --accent-soft:#1D2A4A; --plus:#44CC8A; --plus-soft:#14301F;
-  --minus:#F2766A; --minus-soft:#3A1C1A; --warn:#E8B451; --warn-soft:#352812;
-  color-scheme: dark;
+  --bg:#0B111A; --paper:#131C28; --ink:#E7ECF3; --muted:#94A3B8; --line:#243245;
+  --accent:#7C9BFF; --accent-ink:#0B111A; --accent-soft:#1A2644;
+  --plus:#45D08F; --plus-soft:#12301F; --minus:#F47C70; --minus-soft:#3A1B19;
+  --warn:#EBB650; --warn-soft:#33270F;
+  --hero:#060B12; --hero-ink:#EEF2F8; --hero-muted:#8696AD; --hero-accent:#8FB0FF;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-variation-settings:"wdth" 100;font-size:16px;line-height:1.5;
-  font-variant-numeric:tabular-nums}
-.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
-h1{font-size:clamp(2.2rem,6vw,3.6rem);line-height:1;margin:0 0 10px;font-weight:800;
-  font-variation-settings:"wdth" 125;letter-spacing:-.02em}
-h2{font-size:1.25rem;margin:0 0 14px;font-weight:700;font-variation-settings:"wdth" 112}
-.lead{color:var(--muted);max-width:62ch;margin:0 0 26px}
-.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}
-.setup{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-bottom:16px}
-@media (max-width:760px){.setup{grid-template-columns:1fr}}
-.step{display:flex;gap:10px;align-items:baseline;margin-bottom:12px}
-.step b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;
-  background:var(--ink);color:var(--paper);font-size:.85rem;flex:none}
-.step span{font-weight:700;font-size:1.05rem}
-label.small{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+/* ---------- hero ---------- */
+.hero{background-color:var(--hero);color:var(--hero-ink);
+  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:28px 28px;padding:40px 20px 118px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;
+  border:2px solid rgba(143,176,255,.18);box-shadow:0 0 0 46px rgba(143,176,255,.05),0 0 0 92px rgba(143,176,255,.03)}
+.hero-in{max-width:1100px;margin:0 auto;position:relative;z-index:1}
+.brand{display:inline-flex;align-items:center;gap:10px;font-size:.82rem;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--hero-muted);margin-bottom:22px}
+.brand svg{width:30px;height:30px;color:var(--hero-accent)}
+h1{font-size:clamp(2.6rem,7.5vw,4.8rem);line-height:.92;margin:0 0 18px;font-weight:800;
+  font-variation-settings:"wdth" 125;letter-spacing:-.025em}
+h1 em{font-style:normal;color:var(--hero-accent)}
+.lead{color:var(--hero-muted);max-width:58ch;margin:0;font-size:1.02rem}
+.wrap{max-width:1100px;margin:-86px auto 0;padding:0 20px 40px;position:relative;z-index:2}
+h2{font-size:1.2rem;margin:0;font-weight:700;font-variation-settings:"wdth" 112;letter-spacing:-.005em}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow)}
+.ph{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.ph .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.ph .ic svg{width:20px;height:20px}
+.ph .sub{font-size:.85rem;color:var(--muted)}
+/* ---------- setup ---------- */
+.setup{display:grid;grid-template-columns:1.05fr 1fr;gap:18px;margin-bottom:18px}
+@media (max-width:800px){.setup{grid-template-columns:1fr}}
+.step-n{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+label.small{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px}
 input[type=text],input[type=date],input[type=number],select,textarea{
-  font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
-  border-radius:8px;padding:8px 10px;width:100%}
+  font:inherit;color:var(--ink);background:var(--bg);border:1px solid transparent;
+  border-radius:12px;padding:10px 12px;width:100%;transition:border-color .15s,background .15s}
+input:hover,select:hover,textarea:hover{border-color:var(--line)}
 textarea{min-height:90px;resize:vertical;font-size:.85rem}
-:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;cursor:pointer;
-  transition:border-color .15s,background .15s;margin-bottom:12px}
-.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
-.drop strong{display:block;font-size:1.05rem}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);background:var(--paper);outline:none}
+.drop{border:2px dashed color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:16px;padding:26px 18px;text-align:center;cursor:pointer;
+  transition:border-color .15s,background .15s,transform .15s;margin:16px 0 12px;background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-1px)}
+.drop .up{width:46px;height:46px;border-radius:14px;margin:0 auto 10px;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}
+.drop .up svg{width:24px;height:24px}
+.drop strong{display:block;font-size:1.02rem}
 .drop small{color:var(--muted)}
-details summary{cursor:pointer;color:var(--muted);font-size:.9rem;margin-top:4px}
-.status{font-size:.9rem;color:var(--muted);margin-top:10px;min-height:1.4em}
+details summary{cursor:pointer;color:var(--muted);font-size:.88rem;margin-top:4px}
+details[open] summary{margin-bottom:6px}
+.status{font-size:.88rem;color:var(--muted);margin-top:10px;min-height:1.4em}
 .status.err{color:var(--minus)}
-/* jornada tiles: the memorable element */
+/* jornada: fichas tipo tarjeta perforada */
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.tile{font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:12px;
-  padding:14px 6px 10px;cursor:pointer;text-align:center;transition:transform .12s,border-color .12s}
-.tile:hover{transform:translateY(-2px)}
-.tile .n{display:block;font-size:2.6rem;line-height:1;font-weight:800;font-variation-settings:"wdth" 125}
-.tile .u{font-size:.85rem;color:var(--muted)}
-.tile[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.tile[aria-pressed="true"] .u{color:inherit;opacity:.75}
-.custom{display:none;margin-top:10px;gap:8px;align-items:center}
+.tile{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:16px;
+  padding:22px 6px 12px;cursor:pointer;text-align:center;position:relative;
+  transition:transform .15s,background .15s,box-shadow .15s}
+.tile::before{content:"";position:absolute;left:14px;right:14px;top:9px;height:6px;
+  background:radial-gradient(circle,var(--line) 2px,transparent 2.6px) 0 0/12px 6px repeat-x}
+.tile:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.tile .n{display:block;font-size:2.8rem;line-height:1;font-weight:800;font-variation-settings:"wdth" 125}
+.tile .u{font-size:.8rem;color:var(--muted)}
+.tile[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);
+  box-shadow:0 10px 24px -10px color-mix(in srgb,var(--accent) 70%,transparent)}
+.tile[aria-pressed="true"]::before{background-image:radial-gradient(circle,color-mix(in srgb,var(--accent-ink) 45%,transparent) 2px,transparent 2.6px)}
+.tile[aria-pressed="true"] .u{color:inherit;opacity:.8}
+.custom{display:none;margin-top:12px;gap:10px;align-items:center}
 .custom.show{display:flex}
-.custom input{max-width:110px}
-.opts{margin-top:16px;display:grid;gap:10px}
-.radio{display:flex;gap:8px;align-items:flex-start;font-size:.92rem}
-.radio input{margin-top:4px;accent-color:var(--accent)}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.custom input{max-width:120px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);padding:4px;border-radius:14px;margin-top:18px}
+.seg label{position:relative;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;padding:10px 12px;border-radius:11px;transition:background .15s,box-shadow .15s;height:100%}
+.seg b{display:block;font-size:.92rem}
+.seg small{display:block;font-size:.78rem;color:var(--muted);line-height:1.35}
+.seg input:checked+span{background:var(--paper);box-shadow:var(--shadow)}
+.seg input:focus-visible+span{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
 .row>div{flex:1;min-width:140px}
-/* result */
-.result{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;margin-bottom:16px}
-@media (max-width:760px){.result{grid-template-columns:1fr}}
-.big{font-size:clamp(3.2rem,11vw,6.4rem);line-height:.9;font-weight:800;font-variation-settings:"wdth" 125;
-  letter-spacing:-.03em}
+/* ---------- resultado ---------- */
+.result{display:grid;grid-template-columns:minmax(0,1.25fr) auto minmax(0,1.35fr);gap:28px;align-items:center}
+@media (max-width:960px){.result{grid-template-columns:1fr auto}.facts{grid-column:1/-1}}
+@media (max-width:620px){.result{grid-template-columns:1fr}.ring{justify-self:start}}
+@media (max-width:620px){.panel{padding:18px;border-radius:18px}.fact{padding:10px 12px}.fact .v{font-size:1rem;white-space:normal}.wrap{padding:0 14px 30px}.hero{padding:32px 16px 108px}}
+.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.big{font-size:clamp(2.6rem,4.8vw,4.3rem);white-space:nowrap;line-height:.95;font-weight:800;font-variation-settings:"wdth" 125;letter-spacing:-.035em}
 .big.pos{color:var(--plus)} .big.neg{color:var(--minus)}
-.bigcap{color:var(--muted);margin-top:8px;font-size:.95rem}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 22px}
-.fact{border-left:3px solid var(--line);padding-left:12px}
-.fact .v{font-size:1.3rem;font-weight:700;font-variation-settings:"wdth" 105;white-space:nowrap}
-.fact .k{font-size:.85rem;color:var(--muted)}
-.empty{text-align:center;color:var(--muted);padding:34px 10px}
-.free{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}
-@media (max-width:760px){.free{grid-template-columns:1fr}}
-.big2{font-size:clamp(2.6rem,8vw,4.4rem);line-height:.95;font-weight:800;font-variation-settings:"wdth" 125;letter-spacing:-.02em;color:var(--accent)}
-.free .row>div{min-width:150px}
-.grid2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px;margin-bottom:16px}
-@media (max-width:860px){.grid2{grid-template-columns:1fr}}
-.grid2>section,.setup>section,.result>div{min-width:0}
+.bigcap{color:var(--muted);margin-top:10px;font-size:.92rem}
+#noteCap:empty{display:none}
+#noteCap{margin-top:12px;padding:8px 12px;border-radius:10px;background:var(--accent-soft);color:var(--ink);font-size:.86rem}
+.ring{position:relative;width:150px;height:150px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:12;stroke-linecap:round;transition:stroke-dasharray .6s ease}
+.ring .lbl{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .lbl b{font-size:1.9rem;font-weight:800;font-variation-settings:"wdth" 120;line-height:1}
+.ring .lbl small{font-size:.72rem;color:var(--muted);max-width:90px;line-height:1.25;margin-top:4px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fact{background:var(--bg);border-radius:14px;padding:12px 14px;min-width:0}
+.fact .v{font-size:1.18rem;font-weight:700;font-variation-settings:"wdth" 105;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fact .k{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.fact .k::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot,var(--muted));flex:none}
+.empty{text-align:center;color:var(--muted);padding:30px 10px}
+.empty svg{width:64px;height:64px;color:var(--accent);opacity:.8;margin-bottom:8px}
+.empty b{display:block;color:var(--ink);font-size:1.1rem;margin-bottom:4px}
+/* ---------- días libres ---------- */
+.free-card{background:linear-gradient(135deg,var(--accent-soft),var(--paper) 70%)}
+.free{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:800px){.free{grid-template-columns:1fr}}
+.big2{font-size:clamp(2.8rem,8vw,4.6rem);line-height:.92;font-weight:800;font-variation-settings:"wdth" 125;letter-spacing:-.03em;color:var(--accent)}
+.tickets{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.tk{position:relative;display:inline-grid;place-items:center;width:30px;height:38px;border-radius:7px;background:var(--accent);
+  color:var(--accent-ink);font-size:.72rem;font-weight:700;animation:pop .35s ease both}
+.tk{-webkit-mask:radial-gradient(circle 4px at 0 50%,transparent 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 4px at 100% 50%,transparent 97%,#000) right/51% 100% no-repeat;
+  mask:radial-gradient(circle 4px at 0 50%,transparent 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 4px at 100% 50%,transparent 97%,#000) right/51% 100% no-repeat}
+.tk.more{width:auto;padding:0 10px}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.bar{height:12px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:18px;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(45deg,var(--accent),var(--accent) 8px,color-mix(in srgb,var(--accent) 80%,var(--paper)) 8px,color-mix(in srgb,var(--accent) 80%,var(--paper)) 16px);border-radius:99px;transition:width .6s ease}
+.bartxt{font-size:.82rem;color:var(--muted);margin-top:6px}
+.free .row{margin-top:4px}
+/* ---------- meses ---------- */
+.grid2{display:grid;grid-template-columns:1fr;gap:18px;margin:18px 0}
+.grid2>section,.setup>section,.result>div,.free>div{min-width:0}
 .scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.92rem}
-th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font-weight:600;color:var(--muted);font-size:.82rem}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:700;color:var(--muted);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase}
+tbody tr:not(.month):hover td{background:color-mix(in srgb,var(--accent-soft) 55%,transparent)}
 td.num,th.num{text-align:right}
 .pos{color:var(--plus)} .neg{color:var(--minus)}
 tr.off td{opacity:.45}
-tr.month td{background:var(--bg);font-weight:700;font-variation-settings:"wdth" 112}
-.sess{color:var(--muted);white-space:normal;min-width:170px}
-.flag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;margin:2px 4px 0 0;
+tr.month td{font-weight:800;font-variation-settings:"wdth" 112;color:var(--accent);padding-top:20px;border-bottom:2px solid var(--line);text-transform:capitalize}
+#monthTable tr.month td{padding-top:12px;color:var(--ink);background:var(--bg);border-bottom:none;text-transform:none}
+#monthTable tr.month td:first-child{border-radius:10px 0 0 10px}
+#monthTable tr.month td:last-child{border-radius:0 10px 10px 0}
+.sess{color:var(--muted);white-space:normal;min-width:180px}
+.flag{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:99px;margin:4px 4px 0 0;
   background:var(--warn-soft);color:var(--warn);white-space:nowrap}
-.note{margin-top:6px;padding:6px 10px;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:0 6px 6px 0;font-size:.85rem;white-space:normal;max-width:46ch}
-.btn.mini{font-size:.78rem;padding:4px 10px;margin-top:6px;background:var(--accent);border-color:var(--accent);color:#fff}
-:root[data-theme="dark"] .btn.mini{color:#0F151C}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.mini{color:#0F151C}}
-.applied{display:inline-block;margin-top:6px;font-size:.78rem;color:var(--plus);font-weight:600}
-.hin{width:84px;text-align:right;padding:5px 8px}
+.note{margin-top:8px;padding:8px 12px;background:var(--accent-soft);color:var(--ink);border-radius:4px 12px 12px 12px;font-size:.84rem;white-space:normal;max-width:46ch;position:relative}
+.btn.mini{font-size:.76rem;padding:5px 12px;margin-top:8px;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);border-radius:99px}
+.applied{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:.76rem;color:var(--plus);font-weight:700}
+.applied::before{content:"✓"}
+.hin{width:86px;text-align:right;padding:7px 10px;font:inherit;font-weight:600;color:var(--ink);background:var(--bg);border:1px solid transparent;border-radius:10px}
+.hin:focus{border-color:var(--accent);background:var(--paper);outline:none}
 .hin.edited{border-color:var(--accent);background:var(--accent-soft)}
-td select{width:auto;padding:5px 6px}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
-.btn{font:inherit;font-weight:600;font-size:.9rem;border-radius:8px;padding:8px 14px;cursor:pointer;
-  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-:root[data-theme="dark"] .btn.primary{color:#0F151C}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0F151C}}
-.btn.ghost{background:transparent}
-.legend{font-size:.85rem;color:var(--muted);margin-top:6px}
+td select{width:auto;padding:7px 8px;font-size:.86rem}
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:8px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chk{display:inline-flex;gap:7px;align-items:center;font-size:.86rem;padding:7px 12px;border-radius:99px;background:var(--bg);cursor:pointer}
+.chk input{accent-color:var(--accent);margin:0}
+.btn{font:inherit;font-weight:600;font-size:.88rem;border-radius:12px;padding:9px 16px;cursor:pointer;
+  border:1px solid var(--line);background:var(--paper);color:var(--ink);transition:transform .12s,background .12s,box-shadow .12s}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--minus);border-color:transparent}
+.legend{font-size:.85rem;color:var(--muted);margin:4px 0 0}
+.add{margin-top:18px;padding:16px;border-radius:16px;background:var(--bg)}
+.add input{background:var(--paper)}
 svg text{font-family:inherit;fill:var(--muted);font-size:11px}
+.foot{text-align:center;color:var(--muted);font-size:.8rem;padding:10px 20px 34px}
 .hidden{display:none!important}
-@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Horas extra del año</h1>
-  <p class="lead">Sube el PDF con los fichajes del trabajador, elige su jornada diaria y la página suma lo trabajado cada día y lo compara con lo que tocaba. Todo se calcula en tu navegador: el PDF no se envía a ningún sitio.</p>
+<header class="hero">
+  <div class="hero-in">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="16" cy="17" r="12"/><path d="M16 10v7l5 3M12 3h8"/></svg>
+      Control horario
+    </div>
+    <h1>Horas extra <em>del año</em></h1>
+    <p class="lead">Sube el PDF de fichajes, elige la jornada diaria y obtén las horas de más, los días libres que le corresponden y el detalle de cada día. Todo se calcula en tu navegador: el PDF no sale de tu ordenador.</p>
+  </div>
+</header>
 
+<main class="wrap">
   <div class="setup">
     <section class="panel">
-      <div class="step"><b>1</b><span>Fichajes</span></div>
-      <div class="row" style="margin-bottom:12px">
-        <div><label class="small" for="worker">Trabajador</label><input type="text" id="worker" placeholder="Nombre y apellidos"></div>
+      <div class="ph">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
+        <div><div class="step-n">Paso 1</div><h2>Fichajes</h2></div>
       </div>
+      <label class="small" for="worker">Trabajador</label>
+      <input type="text" id="worker" placeholder="Nombre y apellidos">
       <div class="drop" id="drop" tabindex="0" role="button" aria-label="Subir PDF de fichajes">
+        <div class="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg></div>
         <strong>Arrastra aquí el PDF o haz clic para elegirlo</strong>
         <small>Puedes subir varios PDF (por ejemplo, uno por mes) y se suman</small>
       </div>
       <input type="file" id="file" accept="application/pdf,.pdf" multiple class="hidden">
       <details>
         <summary>El PDF es una imagen escaneada o no se lee bien</summary>
-        <p class="legend">Pega el texto de los fichajes (una línea por fichaje, con fecha, entrada y salida):</p>
+        <p class="legend" style="margin-bottom:8px">Pega el texto de los fichajes (una línea por fichaje, con fecha, entrada y salida):</p>
         <textarea id="paste" placeholder="01/07/2026 08:02 13:30&#10;01/07/2026 14:30 18:05"></textarea>
         <button class="btn" id="pasteBtn" style="margin-top:8px">Añadir texto pegado</button>
       </details>
@@ -159,7 +241,10 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
     </section>
 
     <section class="panel">
-      <div class="step"><b>2</b><span>Jornada diaria</span></div>
+      <div class="ph">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <div><div class="step-n">Paso 2</div><h2>Jornada diaria</h2></div>
+      </div>
       <div class="tiles" role="group" aria-label="Horas de jornada diaria">
         <button class="tile" data-h="4"><span class="n">4</span><span class="u">horas</span></button>
         <button class="tile" data-h="5"><span class="n">5</span><span class="u">horas</span></button>
@@ -170,84 +255,103 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
         <input type="text" id="customH" placeholder="6:30" aria-label="Jornada personalizada (h:mm)">
         <span class="legend">horas al día (h:mm)</span>
       </div>
-      <div class="opts">
-        <label class="radio"><input type="radio" name="mode" value="net" checked>
-          <span><b>Saldo neto.</b> Los días que hace de menos restan de los que hace de más.</span></label>
-        <label class="radio"><input type="radio" name="mode" value="pos">
-          <span><b>Solo excesos.</b> Suma lo que pasa de la jornada y no descuenta los días cortos.</span></label>
+      <div class="seg" role="radiogroup" aria-label="Criterio de cálculo">
+        <label><input type="radio" name="mode" value="net" checked><span><b>Saldo neto</b><small>Los días cortos restan de los largos</small></span></label>
+        <label><input type="radio" name="mode" value="pos"><span><b>Solo excesos</b><small>Suma lo que pasa de la jornada</small></span></label>
       </div>
-      <div class="row" style="margin-top:14px">
-        <div><label class="small" for="year">Periodo</label><select id="year"><option value="all">Todo</option></select></div>
+      <div style="margin-top:16px">
+        <label class="small" for="year">Periodo</label><select id="year"><option value="all">Todo</option></select>
       </div>
     </section>
   </div>
 
-  <section class="panel" id="resultPanel" style="margin-bottom:16px">
-    <div class="empty" id="emptyMsg">Sube un PDF de fichajes para ver el cálculo.</div>
+  <section class="panel" id="resultPanel">
+    <div class="empty" id="emptyMsg">
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><rect x="12" y="8" width="40" height="48" rx="6"/><path d="M22 22h20M22 32h20M22 42h12"/></svg>
+      <b>Aún no hay fichajes</b>
+      Sube un PDF de fichajes para ver el cálculo.
+    </div>
     <div class="result hidden" id="result">
       <div>
+        <div class="eyebrow">Saldo de horas extra</div>
         <div class="big" id="bigNum">+0h 00m</div>
         <div class="bigcap" id="bigCap">horas extra</div>
         <div class="bigcap" id="noteCap"></div>
-        <button class="btn primary hidden" id="applyAll" style="margin-top:10px">Aplicar todas las notas</button>
+        <button class="btn primary hidden" id="applyAll" style="margin-top:12px">Aplicar todas las notas</button>
+      </div>
+      <div class="ring" aria-hidden="true">
+        <svg viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="52" stroke="var(--bg)"/>
+          <circle id="ringArc" cx="65" cy="65" r="52" stroke="var(--accent)" stroke-dasharray="0 400"/>
+          <circle id="ringOver" cx="65" cy="65" r="52" stroke="var(--plus)" stroke-dasharray="0 400"/>
+        </svg>
+        <div class="lbl"><b id="ringPct">0%</b><small>de la jornada trabajada</small></div>
       </div>
       <div class="facts">
-        <div class="fact"><div class="v" id="fWorked">–</div><div class="k">trabajadas</div></div>
+        <div class="fact" style="--dot:var(--accent)"><div class="v" id="fWorked">–</div><div class="k">trabajadas</div></div>
         <div class="fact"><div class="v" id="fExpected">–</div><div class="k">según jornada</div></div>
-        <div class="fact"><div class="v" id="fDays">–</div><div class="k">días contados</div></div>
-        <div class="fact"><div class="v pos" id="fPlus">–</div><div class="k" id="kPlus">días por encima</div></div>
-        <div class="fact"><div class="v neg" id="fMinus">–</div><div class="k" id="kMinus">días por debajo</div></div>
-        <div class="fact"><div class="v" id="fFlags">–</div><div class="k">fichajes a revisar</div></div>
-        <div class="fact"><div class="v" id="fNotes">–</div><div class="k">días con nota</div></div>
+        <div class="fact" style="--dot:var(--plus)"><div class="v pos" id="fPlus">–</div><div class="k" id="kPlus">días por encima</div></div>
+        <div class="fact" style="--dot:var(--minus)"><div class="v neg" id="fMinus">–</div><div class="k" id="kMinus">días por debajo</div></div>
+        <div class="fact" style="--dot:var(--ink)"><div class="v" id="fDays">–</div><div class="k">días contados</div></div>
+        <div class="fact" style="--dot:var(--warn)"><div class="v"><span id="fFlags">–</span> <span style="color:var(--muted);font-weight:500">/</span> <span id="fNotes">–</span></div><div class="k">a revisar / con nota</div></div>
       </div>
     </div>
   </section>
 
-  <section class="panel hidden" id="freeArea" style="margin-bottom:16px">
-    <h2>Días libres</h2>
+  <section class="panel free-card hidden" id="freeArea" style="margin-top:18px">
     <div class="free">
       <div>
+        <div class="ph" style="margin-bottom:10px">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg></div>
+          <h2>Días libres</h2>
+        </div>
         <div class="big2" id="freeDays">0 días</div>
         <div class="bigcap" id="freeCap"></div>
+        <div class="tickets" id="freeTickets" aria-hidden="true"></div>
       </div>
-      <div class="row">
-        <div><label class="small" for="freeEq">Horas extra por día libre</label><input type="text" id="freeEq" inputmode="decimal" placeholder="8:00"></div>
-        <div><label class="small" for="freeTaken">Días libres ya disfrutados</label><input type="text" id="freeTaken" inputmode="decimal" placeholder="0"></div>
+      <div>
+        <div class="row">
+          <div><label class="small" for="freeEq">Horas extra por día libre</label><input type="text" id="freeEq" inputmode="decimal" placeholder="8:00"></div>
+          <div><label class="small" for="freeTaken">Días libres ya disfrutados</label><input type="text" id="freeTaken" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <div class="bar" aria-hidden="true"><i id="freeBar"></i></div>
+        <div class="bartxt" id="freeBarTxt"></div>
+        <p class="legend" id="freeDetail"></p>
       </div>
     </div>
-    <p class="legend" id="freeDetail" style="margin-bottom:0"></p>
   </section>
 
   <div class="grid2 hidden" id="monthsArea">
     <section class="panel">
-      <h2>Saldo por mes</h2>
+      <div class="ph"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h2>Saldo por mes</h2></div>
       <div class="scroll"><svg id="chart" width="100%" height="230" role="img" aria-label="Saldo de horas por mes"></svg></div>
     </section>
     <section class="panel">
-      <h2>Resumen mensual</h2>
+      <div class="ph"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></div><h2>Resumen mensual</h2></div>
       <div class="scroll"><table id="monthTable"></table></div>
     </section>
   </div>
 
   <section class="panel hidden" id="detailArea">
     <div class="toolbar">
-      <h2 style="margin:0">Día a día</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <label class="radio" style="align-items:center"><input type="checkbox" id="onlyFlags"> Solo días a revisar</label>
-        <label class="radio" style="align-items:center"><input type="checkbox" id="onlyNotes"> Solo días con nota</label>
+      <div class="ph" style="margin:0"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div><h2>Día a día</h2></div>
+      <div class="tools">
+        <label class="chk"><input type="checkbox" id="onlyFlags"> A revisar</label>
+        <label class="chk"><input type="checkbox" id="onlyNotes"> Con nota</label>
         <button class="btn" id="copyBtn">Copiar para Excel</button>
         <button class="btn ghost" id="clearBtn">Borrar todo</button>
       </div>
     </div>
-    <p class="legend" style="margin-top:0">Las notas del PDF aparecen bajo los fichajes de cada día. Cuando una nota indica horas (por ejemplo, “he hecho de 8 a 13:30”) o una ausencia justificada, puedes aplicarla con un clic. También puedes corregir las horas escribiéndolas encima (h:mm), marcar el día como jornada completa o excluirlo.</p>
+    <p class="legend" style="margin-bottom:6px">Las notas del PDF aparecen bajo los fichajes de cada día. Cuando una nota indica horas (por ejemplo, “he hecho de 8 a 13:30”) o una ausencia justificada, puedes aplicarla con un clic. También puedes corregir las horas escribiéndolas encima (h:mm), marcar el día como jornada completa o excluirlo.</p>
     <div class="scroll"><table id="dayTable"></table></div>
-    <div class="row" style="margin-top:16px">
+    <div class="row add">
       <div><label class="small" for="addDate">Añadir día que falta</label><input type="date" id="addDate"></div>
       <div><label class="small" for="addH">Horas trabajadas</label><input type="text" id="addH" placeholder="8:00"></div>
       <div style="flex:0"><button class="btn primary" id="addBtn">Añadir día</button></div>
     </div>
   </section>
-</div>
+</main>
+<p class="foot">Los datos se guardan solo en este navegador.</p>
 
 <script>
 (function(){
@@ -543,6 +647,10 @@ function render(){
   $('#kMinus').textContent = 'en ' + tot.minus + ' días por debajo';
   $('#fFlags').textContent = tot.flags;
   $('#fNotes').textContent = tot.notes;
+  const pct = tot.expected ? tot.worked / tot.expected : 0, C = 2 * Math.PI * 52;
+  $('#ringArc').setAttribute('stroke-dasharray', (Math.min(pct, 1) * C) + ' ' + C);
+  $('#ringOver').setAttribute('stroke-dasharray', (Math.max(0, Math.min(pct - 1, 1)) * C) + ' ' + C);
+  $('#ringPct').textContent = Math.round(pct * 100) + '%';
   if(tot.pending){
     const alt = compute(true).tot;
     $('#noteCap').textContent = tot.pending + (tot.pending === 1 ? ' día tiene una nota sin aplicar' : ' días tienen notas sin aplicar') + '. Aplicándolas, el total sería ' + fmt(alt.extra, true) + '.';
@@ -565,6 +673,10 @@ function render(){
   else det = 'Le sobran ' + fmt(rem) + ' para el siguiente día libre (le faltan ' + fmt(eq - rem) + ').';
   if(tot.pending){ const a = compute(true).tot.extra - taken * eq; det += ' Aplicando las notas pendientes serían ' + (a > 0 ? Math.floor(a / eq) : 0) + '.'; }
   $('#freeDetail').textContent = det;
+  const nT = Math.min(fd, 48);
+  if($('#freeTickets').dataset.n !== String(fd)) $('#freeTickets').dataset.n = fd, $('#freeTickets').innerHTML = Array.from({ length: nT }, (_, i) => `<span class="tk" style="animation-delay:${i * 18}ms">${i + 1}</span>`).join('') + (fd > nT ? `<span class="tk more">+${fd - nT}</span>` : '');
+  $('#freeBar').style.width = (bal > 0 ? rem / eq * 100 : 0) + '%';
+  $('#freeBarTxt').textContent = bal > 0 ? 'Próximo día libre: ' + fmt(rem) + ' de ' + fmt(eq).replace(' 00m', '') : '';
   if(document.activeElement !== $('#freeEq')) $('#freeEq').value = hm(eq);
   if(document.activeElement !== $('#freeTaken')) $('#freeTaken').value = taken ? String(taken).replace('.', ',') : '';
 
@@ -627,7 +739,7 @@ function drawChart(keys, months){
   const scale = (hasNeg ? (H - top - bot) / 2 : (H - top - bot)) / max;
   const bw = Math.min(34, (W - left - 10) / keys.length * 0.62);
   const step = (W - left - 10) / keys.length;
-  let s = `<line x1="${left}" x2="${W-6}" y1="${zero}" y2="${zero}" stroke="var(--line)"/>`;
+  let s = `<line x1="${left}" x2="${W-6}" y1="${top}" y2="${top}" stroke="var(--line)" stroke-dasharray="3 4"/>` + (hasNeg ? `<line x1="${left}" x2="${W-6}" y1="${H-bot}" y2="${H-bot}" stroke="var(--line)" stroke-dasharray="3 4"/>` : '') + `<line x1="${left}" x2="${W-6}" y1="${zero}" y2="${zero}" stroke="var(--muted)" stroke-opacity=".5"/>`;
   s += `<text x="${left-8}" y="${top+4}" text-anchor="end">${fmtH(max)}</text>`;
   if(hasNeg) s += `<text x="${left-8}" y="${H-bot}" text-anchor="end">${fmtH(-max)}</text>`;
   s += `<text x="${left-8}" y="${zero+4}" text-anchor="end">0</text>`;
@@ -635,7 +747,7 @@ function drawChart(keys, months){
     const v = vals[i], x = left + i*step + (step-bw)/2, hgt = Math.abs(v)*scale;
     const y = v >= 0 ? zero - hgt : zero;
     const col = v >= 0 ? 'var(--plus)' : 'var(--minus)';
-    s += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(hgt, 1)}" rx="3" fill="${col}"><title>${k}: ${fmt(months[k].extra, true)}</title></rect>`;
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(hgt, 1)}" rx="6" fill="${col}"><title>${k}: ${fmt(months[k].extra, true)}</title></rect>`;
     s += `<text x="${x + bw/2}" y="${v >= 0 ? y - 5 : y + hgt + 12}" text-anchor="middle" style="fill:var(--ink);font-weight:600">${fmtH(v)}</text>`;
     s += `<text x="${x + bw/2}" y="${H - 12}" text-anchor="middle">${MES[+k.slice(5)-1].slice(0,3)}</text>`;
   });
