@@ -94,6 +94,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.9rem;margin-top:4px
 .fact .v{font-size:1.3rem;font-weight:700;font-variation-settings:"wdth" 105;white-space:nowrap}
 .fact .k{font-size:.85rem;color:var(--muted)}
 .empty{text-align:center;color:var(--muted);padding:34px 10px}
+.free{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}
+@media (max-width:760px){.free{grid-template-columns:1fr}}
+.big2{font-size:clamp(2.6rem,8vw,4.4rem);line-height:.95;font-weight:800;font-variation-settings:"wdth" 125;letter-spacing:-.02em;color:var(--accent)}
+.free .row>div{min-width:150px}
 .grid2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px;margin-bottom:16px}
 @media (max-width:860px){.grid2{grid-template-columns:1fr}}
 .grid2>section,.setup>section,.result>div{min-width:0}
@@ -199,6 +203,21 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
     </div>
   </section>
 
+  <section class="panel hidden" id="freeArea" style="margin-bottom:16px">
+    <h2>Días libres</h2>
+    <div class="free">
+      <div>
+        <div class="big2" id="freeDays">0 días</div>
+        <div class="bigcap" id="freeCap"></div>
+      </div>
+      <div class="row">
+        <div><label class="small" for="freeEq">Horas extra por día libre</label><input type="text" id="freeEq" inputmode="decimal" placeholder="8:00"></div>
+        <div><label class="small" for="freeTaken">Días libres ya disfrutados</label><input type="text" id="freeTaken" inputmode="decimal" placeholder="0"></div>
+      </div>
+    </div>
+    <p class="legend" id="freeDetail" style="margin-bottom:0"></p>
+  </section>
+
   <div class="grid2 hidden" id="monthsArea">
     <section class="panel">
       <h2>Saldo por mes</h2>
@@ -237,7 +256,7 @@ const WD = ['dom','lun','mar','mié','jue','vie','sáb'];
 const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const KEY = 'horas-extra-v1';
 
-let state = { jornada: 480, jornadaSel: '8', mode: 'net', year: 'all', worker: '', days: {} };
+let state = { jornada: 480, jornadaSel: '8', mode: 'net', year: 'all', worker: '', freeEq: 480, freeTaken: 0, days: {} };
 // days[iso] = { sessions:[{s,e,m,flag}], status:'count'|'full'|'off', override:null|minutes, manual:bool }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
@@ -506,7 +525,7 @@ function render(){
 
   const has = Object.keys(state.days).length > 0;
   $('#emptyMsg').classList.toggle('hidden', has);
-  ['#result','#monthsArea','#detailArea'].forEach(s => $(s).classList.toggle('hidden', !has));
+  ['#result','#freeArea','#monthsArea','#detailArea'].forEach(s => $(s).classList.toggle('hidden', !has));
   if(!has) return;
 
   const { list, tot, months } = compute();
@@ -530,14 +549,34 @@ function render(){
   } else $('#noteCap').textContent = tot.notes ? 'Todas las notas con horas ya están aplicadas.' : '';
   $('#applyAll').classList.toggle('hidden', !tot.pending);
 
+  // días libres
+  const eq = state.freeEq || 480;
+  const taken = +state.freeTaken || 0;
+  const bal = tot.extra - taken * eq;
+  const fd = bal > 0 ? Math.floor(bal / eq) : 0;
+  const rem = bal > 0 ? bal - fd * eq : 0;
+  $('#freeDays').textContent = fd + (fd === 1 ? ' día' : ' días');
+  let cap = 'libres que le corresponden, a 1 día por cada ' + fmt(eq).replace(' 00m', '') + ' extra';
+  if(taken) cap += ', descontando ' + String(taken).replace('.', ',') + (taken === 1 ? ' ya disfrutado' : ' ya disfrutados');
+  $('#freeCap').textContent = cap + '.';
+  let det;
+  if(tot.extra <= 0) det = 'Con el saldo actual no acumula días libres.';
+  else if(bal < 0) det = 'Ha disfrutado más días de los que le corresponden: le faltan ' + fmt(-bal) + ' para compensarlos.';
+  else det = 'Le sobran ' + fmt(rem) + ' para el siguiente día libre (le faltan ' + fmt(eq - rem) + ').';
+  if(tot.pending){ const a = compute(true).tot.extra - taken * eq; det += ' Aplicando las notas pendientes serían ' + (a > 0 ? Math.floor(a / eq) : 0) + '.'; }
+  $('#freeDetail').textContent = det;
+  if(document.activeElement !== $('#freeEq')) $('#freeEq').value = hm(eq);
+  if(document.activeElement !== $('#freeTaken')) $('#freeTaken').value = taken ? String(taken).replace('.', ',') : '';
+
   // months
   const mk = Object.keys(months).sort();
-  let mt = '<thead><tr><th>Mes</th><th class="num">Días</th><th class="num">Trabajadas</th><th class="num">Esperadas</th><th class="num">Extra</th></tr></thead><tbody>';
+  let mt = '<thead><tr><th>Mes</th><th class="num">Días</th><th class="num">Trabajadas</th><th class="num">Esperadas</th><th class="num">Extra</th><th class="num">Días libres</th></tr></thead><tbody>';
+  let acc = 0;
   for(const k of mk){
-    const m = months[k], [y, mo] = k.split('-');
-    mt += `<tr><td>${MES[+mo-1]} ${y}</td><td class="num">${m.days}</td><td class="num">${fmt(m.worked)}</td><td class="num">${fmt(m.expected)}</td><td class="num ${m.extra>0?'pos':m.extra<0?'neg':''}">${fmt(m.extra,true)}</td></tr>`;
+    const m = months[k], [y, mo] = k.split('-'); acc += m.extra;
+    mt += `<tr><td>${MES[+mo-1]} ${y}</td><td class="num">${m.days}</td><td class="num">${fmt(m.worked)}</td><td class="num">${fmt(m.expected)}</td><td class="num ${m.extra>0?'pos':m.extra<0?'neg':''}">${fmt(m.extra,true)}</td><td class="num">${freeDaysOf(acc)}</td></tr>`;
   }
-  mt += `<tr class="month"><td>Total</td><td class="num">${tot.days}</td><td class="num">${fmt(tot.worked)}</td><td class="num">${fmt(tot.expected)}</td><td class="num ${tot.extra>0?'pos':tot.extra<0?'neg':''}">${fmt(tot.extra,true)}</td></tr></tbody>`;
+  mt += `<tr class="month"><td>Total</td><td class="num">${tot.days}</td><td class="num">${fmt(tot.worked)}</td><td class="num">${fmt(tot.expected)}</td><td class="num ${tot.extra>0?'pos':tot.extra<0?'neg':''}">${fmt(tot.extra,true)}</td><td class="num">${freeDaysOf(tot.extra)}</td></tr></tbody>`;
   $('#monthTable').innerHTML = mt;
   drawChart(mk, months);
 
@@ -574,6 +613,8 @@ function render(){
   h += '</tbody>';
   $('#dayTable').innerHTML = h;
 }
+
+function freeDaysOf(mins){ return Math.max(0, Math.floor(mins / (state.freeEq || 480))); }
 
 function drawChart(keys, months){
   const svg = $('#chart');
@@ -631,6 +672,8 @@ $('#year').addEventListener('change', e => { state.year = e.target.value; save()
 $('#worker').addEventListener('input', e => { state.worker = e.target.value; save(); render(); });
 $('#onlyFlags').addEventListener('change', render);
 $('#onlyNotes').addEventListener('change', render);
+$('#freeEq').addEventListener('input', e => { const v = parseHM(e.target.value); if(v && v > 0){ state.freeEq = v; save(); render(); } });
+$('#freeTaken').addEventListener('input', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); state.freeTaken = isNaN(v) || v < 0 ? 0 : v; save(); render(); });
 $('#dayTable').addEventListener('click', e => { const b = e.target.closest('[data-apply]'); if(b){ applyNote(b.dataset.apply); save(); render(); } });
 $('#applyAll').addEventListener('click', () => {
   for(const iso in state.days){ if(state.year !== 'all' && !iso.startsWith(state.year)) continue; const n = noteSuggest(state.days[iso]); if(n && n.has && !noteApplied(state.days[iso], n)) applyNote(iso); }
@@ -674,6 +717,7 @@ $('#copyBtn').addEventListener('click', async () => {
       {count:'Horas reales', full:'Jornada completa', off:'Excluido'}[r.d.status], r.note ? r.note.text : '']);
   }
   rows.push([]); rows.push(['Total horas extra', '', hm(tot.worked), (tot.extra<0?'-':'') + hm(Math.abs(tot.extra)), '']);
+  rows.push(['Días libres (1 cada ' + hm(state.freeEq || 480) + ' h extra)', '', '', String(Math.max(0, Math.floor((tot.extra - (+state.freeTaken || 0) * (state.freeEq || 480)) / (state.freeEq || 480)))), '']);
   const txt = rows.map(r => r.join('\t')).join('\n');
   let ok = false;
   try{ await navigator.clipboard.writeText(txt); ok = true; }catch(e){
