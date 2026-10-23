@@ -13,4 +13,9 @@ Calculadora web de horas extra a partir del PDF de fichajes de un trabajador.
 
 Muestra el total de horas extra, el resumen por mes con gráfico y el detalle día a día. Marca los fichajes a revisar (sin salida, tramos de 0 min, un solo tramo) y permite corregir horas, contar un día como jornada completa o excluirlo. El botón «Copiar para Excel» copia la tabla.
 
+### Notas del PDF
+Lee las notas escritas en los fichajes y las muestra en cada día. Si una nota indica horas («he hecho de 8 a 13:30», «salí a las 17:30») calcula las horas reales del día sin duplicar tramos ya fichados; si indica una ausencia justificada (médico, vacaciones, permiso, formación) propone contar jornada completa. Las sugerencias se aplican día a día o todas de golpe, y el total muestra cuánto cambiaría.
+
+![Notas](captura-notas.jpg)
+
 El PDF se procesa en el navegador; no se envía a ningún servidor.

@@ -108,6 +108,11 @@ tr.month td{background:var(--bg);font-weight:700;font-variation-settings:"wdth" 
 .sess{color:var(--muted);white-space:normal;min-width:170px}
 .flag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;margin:2px 4px 0 0;
   background:var(--warn-soft);color:var(--warn);white-space:nowrap}
+.note{margin-top:6px;padding:6px 10px;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:0 6px 6px 0;font-size:.85rem;white-space:normal;max-width:46ch}
+.btn.mini{font-size:.78rem;padding:4px 10px;margin-top:6px;background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.mini{color:#0F151C}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.mini{color:#0F151C}}
+.applied{display:inline-block;margin-top:6px;font-size:.78rem;color:var(--plus);font-weight:600}
 .hin{width:84px;text-align:right;padding:5px 8px}
 .hin.edited{border-color:var(--accent);background:var(--accent-soft)}
 td select{width:auto;padding:5px 6px}
@@ -179,6 +184,8 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
       <div>
         <div class="big" id="bigNum">+0h 00m</div>
         <div class="bigcap" id="bigCap">horas extra</div>
+        <div class="bigcap" id="noteCap"></div>
+        <button class="btn primary hidden" id="applyAll" style="margin-top:10px">Aplicar todas las notas</button>
       </div>
       <div class="facts">
         <div class="fact"><div class="v" id="fWorked">–</div><div class="k">trabajadas</div></div>
@@ -187,6 +194,7 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
         <div class="fact"><div class="v pos" id="fPlus">–</div><div class="k" id="kPlus">días por encima</div></div>
         <div class="fact"><div class="v neg" id="fMinus">–</div><div class="k" id="kMinus">días por debajo</div></div>
         <div class="fact"><div class="v" id="fFlags">–</div><div class="k">fichajes a revisar</div></div>
+        <div class="fact"><div class="v" id="fNotes">–</div><div class="k">días con nota</div></div>
       </div>
     </div>
   </section>
@@ -207,11 +215,12 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
       <h2 style="margin:0">Día a día</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <label class="radio" style="align-items:center"><input type="checkbox" id="onlyFlags"> Solo días a revisar</label>
+        <label class="radio" style="align-items:center"><input type="checkbox" id="onlyNotes"> Solo días con nota</label>
         <button class="btn" id="copyBtn">Copiar para Excel</button>
         <button class="btn ghost" id="clearBtn">Borrar todo</button>
       </div>
     </div>
-    <p class="legend" style="margin-top:0">Puedes corregir las horas de un día escribiéndolas encima (h:mm), marcarlo como jornada completa o excluirlo (festivo, vacaciones, fichaje erróneo).</p>
+    <p class="legend" style="margin-top:0">Las notas del PDF aparecen bajo los fichajes de cada día. Cuando una nota indica horas (por ejemplo, “he hecho de 8 a 13:30”) o una ausencia justificada, puedes aplicarla con un clic. También puedes corregir las horas escribiéndolas encima (h:mm), marcar el día como jornada completa o excluirlo.</p>
     <div class="scroll"><table id="dayTable"></table></div>
     <div class="row" style="margin-top:16px">
       <div><label class="small" for="addDate">Añadir día que falta</label><input type="date" id="addDate"></div>
@@ -264,21 +273,48 @@ function toIso(d, mo, y){
   return y + '-' + String(mo).padStart(2,'0') + '-' + String(d).padStart(2,'0');
 }
 
+const IGNORE = new Set(['lunes','martes','miercoles','miércoles','jueves','viernes','sabado','sábado','domingo','lun','mar','mié','mie','jue','vie','sáb','sab','dom','entrada','salida','fichaje','fichajes','total','horas','min','manual','web','app','móvil','movil','cerrado','abierto','completo','curso','en','de','del','la','el','y']);
+function isWordy(t){ const w = t.toLowerCase().replace(/[^a-záéíóúñü]/g,''); return w.length >= 2 && !IGNORE.has(w); }
+function splitNote(rest){
+  const tk = rest.split(' ').filter(Boolean);
+  for(let i = 0; i < tk.length; i++){
+    if(!isWordy(tk[i])) continue;
+    let c = 0; for(let j = i; j < Math.min(tk.length, i + 4); j++) if(isWordy(tk[j])) c++;
+    if(c >= 2) return { head: tk.slice(0, i).join(' '), note: tk.slice(i).join(' ') };
+  }
+  return { head: rest, note: '' };
+}
+function timesIn(str){ return [...str.matchAll(TIME_RE)].map(m => (+m[1])*60 + (+m[2])); }
+function cleanNote(n){ return n.replace(/\b\d{1,3}\s*h\s*\d{1,2}\s*m(in)?\b/gi,' ').replace(/\s+/g,' ').replace(/^[\s\-–:|]+|[\s\-–:|]+$/g,'').trim(); }
+
 function parseLines(lines){
-  let lastDate = null, added = 0, seen = new Set();
+  let lastDate = null, added = 0, lastSess = null, seen = new Set();
   for(const iso in state.days) for(const s of state.days[iso].sessions) seen.add(iso+'|'+s.s+'|'+s.e+'|'+s.m);
   for(const raw of lines){
     const line = raw.replace(/\s+/g,' ').trim(); if(!line) continue;
     const dates = [];
     for(const m of line.matchAll(DATE_RE)){ const i = toIso(m[1],m[2],m[3]); if(i) dates.push(i); }
     for(const m of line.matchAll(ISO_RE)){ const i = toIso(m[3],m[2],m[1]); if(i) dates.push(i); }
-    const rest = line.replace(DATE_RE,' ').replace(ISO_RE,' ');
-    const times = [...rest.matchAll(TIME_RE)].map(m => (+m[1])*60 + (+m[2]));
-    const dm = rest.match(DUR_RE);
+    const rest = line.replace(DATE_RE,' ').replace(ISO_RE,' ').replace(/#\s?\d+/g,' ').replace(/\s+/g,' ').trim();
+    let { head, note } = splitNote(rest);
+    let times = timesIn(head);
+    if(times.length < 2 && note){
+      const tail = note.match(/((?:\b\d{1,2}:\d{2}(?::\d{2})?\s*){2,})$/);
+      if(tail){ times = times.concat(timesIn(tail[1])); note = note.slice(0, tail.index); }
+    }
+    note = cleanNote(note);
+    if(note.length < 6) note = '';
+    const dm = head.match(DUR_RE);
     const dur = dm ? (+dm[1])*60 + (+dm[2]) : null;
+    if(!dates.length && !times.length && dur == null){
+      // continuación de una nota partida en varias líneas
+      if(lastSess && lastSess.note && note && !/p[aá]gina|page|\b\d+\s*(de|\/)\s*\d+\b/i.test(line)) lastSess.note += ' ' + cleanNote(rest);
+      else lastSess = null;
+      continue;
+    }
     if(dates.length) lastDate = dates[0];
     const date = dates[0] || (times.length >= 2 ? lastDate : null);
-    if(!date) continue;
+    if(!date){ lastSess = null; continue; }
     const sess = [];
     if(times.length >= 2){
       sess.push(pair(times[0], times[1]));
@@ -287,21 +323,72 @@ function parseLines(lines){
       sess.push({ s: times[0], e: null, m: dur || 0, flag: 'Fichaje sin salida' });
     } else if(dur != null){
       sess.push({ s: null, e: null, m: dur, flag: dur === 0 ? 'Tramo de 0 min' : null });
-    } else continue;
+    } else if(note){
+      sess.push({ s: null, e: null, m: 0, flag: null, noteOnly: true });
+    } else { lastSess = null; continue; }
+    if(note) sess[sess.length - 1].note = note;
+    lastSess = null;
     for(const s of sess){
-      const k = date+'|'+s.s+'|'+s.e+'|'+s.m;
+      const k = date+'|'+s.s+'|'+s.e+'|'+s.m+(s.noteOnly ? '|'+note : '');
       if(seen.has(k)) continue; seen.add(k);
       if(!state.days[date]) state.days[date] = { sessions: [], status: 'count', override: null, manual: false };
-      state.days[date].sessions.push(s); added++;
+      state.days[date].sessions.push(s); added++; lastSess = s;
     }
   }
+  // textos que se repiten en muchas filas son columnas (oficina, tipo…), no notas
+  const cnt = {}; let totS = 0;
+  for(const iso in state.days) for(const s of state.days[iso].sessions){ totS++; if(s.note) cnt[s.note] = (cnt[s.note]||0) + 1; }
+  const common = Object.keys(cnt).filter(n => cnt[n] >= 4 && cnt[n] >= totS * 0.2).sort((a,b) => b.length - a.length);
   for(const iso in state.days){
     const d = state.days[iso];
+    for(const s of d.sessions){
+      if(!s.note) continue;
+      for(const c of common){ if(s.note === c){ s.note = ''; break; } if(s.note.startsWith(c + ' ')){ s.note = s.note.slice(c.length).trim(); break; } }
+    }
+    d.sessions = d.sessions.filter(s => !(s.noteOnly && !s.note));
+    if(!d.sessions.length && !d.manual && d.override == null){ delete state.days[iso]; continue; }
     d.sessions.sort((a,b) => (a.s ?? 9999) - (b.s ?? 9999));
     if(!d.manual && d.override == null && d.status === 'count' && sumSessions(d) === 0) d.status = 'off';
   }
   return added;
 }
+
+/* ---------- notas ---------- */
+function esc(t){ return String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function unionLen(list){
+  list = list.slice().sort((x,y) => x[0]-y[0]); let t = 0, cs = 0, ce = -1;
+  for(const [a,b] of list){ if(a > ce){ if(ce > cs) t += ce - cs; cs = a; ce = b; } else ce = Math.max(ce, b); }
+  if(ce > cs) t += ce - cs; return t;
+}
+function noteSuggest(d){
+  const txt = d.sessions.map(s => s.note).filter(Boolean).join(' · ');
+  if(!txt) return null;
+  const raw = sumSessions(d);
+  const iv = d.sessions.filter(s => s.s != null && s.e != null).map(s => [s.s, s.s + s.m]);
+  const extra = [];
+  const add = (a, b) => { if(b <= a && b < 720) b += 720; if(b > a && b - a <= 14*60) extra.push([a, b]); };
+  for(const m of txt.matchAll(/(?:\bde|\bdesde)\s+(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?\s*(?:h\b|horas?)?\s*(?:a|hasta)\s+(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?/gi))
+    add((+m[1])*60 + (+m[2]||0), (+m[3])*60 + (+m[4]||0));
+  if(!extra.length) for(const m of txt.matchAll(/\b(\d{1,2}):(\d{2})\s*(?:-|–|a)\s*(\d{1,2}):(\d{2})\b/g))
+    add((+m[1])*60 + (+m[2]), (+m[3])*60 + (+m[4]));
+  const open = d.sessions.find(s => s.s != null && (s.e == null || s.m === 0));
+  const ms = txt.match(/\bsal[a-záéíóú]*\s+(?:a\s+)?(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?/i);
+  if(open && ms) add(open.s, (+ms[1])*60 + (+ms[2]||0));
+  const res = { text: txt, minutes: null, full: false, has: false, forgot: /olvid|no (he )?fich/i.test(txt) };
+  if(extra.length){ res.minutes = unionLen(iv.concat(extra)); res.has = res.minutes !== raw; }
+  else if(/vacaci|festiv|\bbaja\b|permiso|m[eé]dic|asuntos propios|formaci[oó]n|curso/i.test(txt)){ res.full = true; res.has = true; }
+  return res;
+}
+function noteApplied(d, n){
+  if(!n || !n.has) return false;
+  return n.minutes != null ? (d.override === n.minutes && d.status === 'count') : d.status === 'full';
+}
+function applyNote(iso){
+  const d = state.days[iso], n = noteSuggest(d);
+  if(!n || !n.has) return;
+  if(n.minutes != null){ d.override = n.minutes; d.status = 'count'; } else d.status = 'full';
+}
+
 function pair(a, b){
   let m = b - a; if(m < 0) m += 1440;
   return { s: a, e: b, m, flag: m === 0 ? 'Tramo de 0 min' : (m > 14*60 ? 'Tramo muy largo' : null) };
@@ -362,26 +449,34 @@ function pickYear(){
 }
 
 /* ---------- calc ---------- */
-function compute(){
+function compute(withNotes){
   const J = state.jornada;
   const list = Object.keys(state.days).sort()
     .filter(iso => state.year === 'all' || iso.startsWith(state.year))
     .map(iso => {
-      const d = state.days[iso];
-      const raw = sumSessions(d);
+      const d0 = state.days[iso];
+      const note = noteSuggest(d0);
+      const raw = sumSessions(d0);
+      let d = d0;
+      if(withNotes && note && note.has && !noteApplied(d0, note)){
+        d = Object.assign({}, d0);
+        if(note.minutes != null){ d.override = note.minutes; d.status = 'count'; } else d.status = 'full';
+      }
       const worked = d.override != null ? d.override : raw;
-      const flags = [...new Set(d.sessions.map(s => s.flag).filter(Boolean))];
-      if(d.status === 'count' && d.sessions.length === 1 && worked < J && J >= 360) flags.push('Un solo tramo');
+      const flags = [...new Set(d0.sessions.map(s => s.flag).filter(Boolean))];
+      if(d.status === 'count' && d0.sessions.filter(s => s.s != null).length === 1 && worked < J && J >= 360) flags.push('Un solo tramo');
+      if(note && note.forgot) flags.push('Olvido de fichaje');
       let diff = 0, counted = false;
       if(d.status === 'count'){ diff = worked - J; counted = true; }
       else if(d.status === 'full'){ diff = 0; counted = true; }
       const extra = state.mode === 'net' ? diff : Math.max(0, diff);
-      return { iso, d, raw, worked: d.status === 'full' ? Math.max(worked, J) : worked, diff, extra, counted, flags };
+      return { iso, d, raw, worked: d.status === 'full' ? Math.max(worked, J) : worked, diff, extra, counted, flags, note };
     });
-  const tot = { worked: 0, expected: 0, days: 0, extra: 0, plus: 0, minus: 0, flags: 0, plusMin: 0, minusMin: 0 };
+  const tot = { worked: 0, expected: 0, days: 0, extra: 0, plus: 0, minus: 0, flags: 0, plusMin: 0, minusMin: 0, notes: 0, pending: 0 };
   const months = {};
   for(const r of list){
-    if(r.flags.length && r.d.status !== 'off' || (r.d.status === 'off' && r.flags.length && !r.d.manual)) tot.flags++;
+    if(r.flags.length && !(r.d.status === 'off' && r.d.manual)) tot.flags++;
+    if(r.note){ tot.notes++; if(r.note.has && !noteApplied(r.d, r.note)) tot.pending++; }
     if(!r.counted) continue;
     const mk = r.iso.slice(0,7);
     const m = months[mk] || (months[mk] = { worked: 0, expected: 0, days: 0, extra: 0 });
@@ -428,6 +523,12 @@ function render(){
   $('#fMinus').textContent = fmt(tot.minusMin, true);
   $('#kMinus').textContent = 'en ' + tot.minus + ' días por debajo';
   $('#fFlags').textContent = tot.flags;
+  $('#fNotes').textContent = tot.notes;
+  if(tot.pending){
+    const alt = compute(true).tot;
+    $('#noteCap').textContent = tot.pending + (tot.pending === 1 ? ' día tiene una nota sin aplicar' : ' días tienen notas sin aplicar') + '. Aplicándolas, el total sería ' + fmt(alt.extra, true) + '.';
+  } else $('#noteCap').textContent = tot.notes ? 'Todas las notas con horas ya están aplicadas.' : '';
+  $('#applyAll').classList.toggle('hidden', !tot.pending);
 
   // months
   const mk = Object.keys(months).sort();
@@ -445,20 +546,23 @@ function render(){
   let h = '<thead><tr><th>Fecha</th><th>Fichajes</th><th class="num">Horas</th><th class="num">Diferencia</th><th>Cómo cuenta</th></tr></thead><tbody>';
   let lastM = '';
   for(const r of list){
-    if(only && !r.flags.length) continue;
+    if(only && !r.flags.length && !(r.note && r.note.has && !noteApplied(r.d, r.note))) continue;
+    if($('#onlyNotes').checked && !r.note) continue;
     const m = r.iso.slice(0,7);
     if(m !== lastM){ lastM = m; const [y,mo] = m.split('-'); h += `<tr class="month"><td colspan="5">${MES[+mo-1]} ${y}</td></tr>`; }
     const dt = new Date(r.iso + 'T12:00:00');
     const [y, mo, dd] = r.iso.split('-');
-    const sess = r.d.sessions.length
-      ? r.d.sessions.map(s => s.s == null ? fmt(s.m) : (clock(s.s) + '–' + (s.e == null ? '¿?' : clock(s.e)))).join(', ')
+    const shown = r.d.sessions.filter(s => !s.noteOnly);
+    const sess = shown.length
+      ? shown.map(s => s.s == null ? fmt(s.m) : (clock(s.s) + '–' + (s.e == null ? '¿?' : clock(s.e)))).join(', ')
       : (r.d.manual ? 'Añadido a mano' : '');
+    const nt = r.note ? `<div class="note">“${esc(r.note.text)}”</div>` + (r.note.has ? (noteApplied(r.d, r.note) ? '<span class="applied">Nota aplicada</span>' : `<button class="btn mini" data-apply="${r.iso}">Aplicar nota: ${r.note.minutes != null ? fmt(r.note.minutes) : 'jornada completa'}</button>`) : '') : '';
     const fl = r.flags.map(f => `<span class="flag">${f}</span>`).join('');
     const diffTxt = r.counted ? fmt(r.d.status === 'full' ? 0 : r.diff, true) : '–';
     const cls = !r.counted ? '' : (r.diff > 0 && r.d.status === 'count' ? 'pos' : r.diff < 0 && r.d.status === 'count' ? 'neg' : '');
     h += `<tr class="${r.d.status === 'off' ? 'off' : ''}">
       <td>${WD[dt.getDay()]} ${dd}/${mo}/${y}</td>
-      <td class="sess">${sess}<div>${fl}</div></td>
+      <td class="sess">${sess}<div>${fl}</div>${nt}</td>
       <td class="num"><input class="hin ${r.d.override != null ? 'edited' : ''}" data-iso="${r.iso}" value="${hm(r.d.override != null ? r.d.override : r.raw)}" aria-label="Horas del ${dd}/${mo}"></td>
       <td class="num ${cls}">${diffTxt}</td>
       <td><select data-st="${r.iso}" aria-label="Cómo cuenta el ${dd}/${mo}">
@@ -526,6 +630,12 @@ document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('c
 $('#year').addEventListener('change', e => { state.year = e.target.value; save(); render(); });
 $('#worker').addEventListener('input', e => { state.worker = e.target.value; save(); render(); });
 $('#onlyFlags').addEventListener('change', render);
+$('#onlyNotes').addEventListener('change', render);
+$('#dayTable').addEventListener('click', e => { const b = e.target.closest('[data-apply]'); if(b){ applyNote(b.dataset.apply); save(); render(); } });
+$('#applyAll').addEventListener('click', () => {
+  for(const iso in state.days){ if(state.year !== 'all' && !iso.startsWith(state.year)) continue; const n = noteSuggest(state.days[iso]); if(n && n.has && !noteApplied(state.days[iso], n)) applyNote(iso); }
+  save(); render();
+});
 
 $('#dayTable').addEventListener('change', e => {
   const t = e.target;
@@ -555,13 +665,13 @@ $('#clearBtn').addEventListener('click', () => {
 
 $('#copyBtn').addEventListener('click', async () => {
   const { list, tot } = compute();
-  const rows = [['Fecha','Fichajes','Horas trabajadas','Diferencia','Cómo cuenta']];
+  const rows = [['Fecha','Fichajes','Horas trabajadas','Diferencia','Cómo cuenta','Nota']];
   for(const r of list){
     const [y,mo,dd] = r.iso.split('-');
     rows.push([`${dd}/${mo}/${y}`,
-      r.d.sessions.map(s => s.s == null ? hm(s.m) : clock(s.s)+'-'+(s.e==null?'?':clock(s.e))).join(' / '),
+      r.d.sessions.filter(s => !s.noteOnly).map(s => s.s == null ? hm(s.m) : clock(s.s)+'-'+(s.e==null?'?':clock(s.e))).join(' / '),
       hm(r.worked), r.counted ? (r.diff < 0 ? '-' : '') + hm(Math.abs(r.d.status === 'full' ? 0 : r.diff)) : '',
-      {count:'Horas reales', full:'Jornada completa', off:'Excluido'}[r.d.status]]);
+      {count:'Horas reales', full:'Jornada completa', off:'Excluido'}[r.d.status], r.note ? r.note.text : '']);
   }
   rows.push([]); rows.push(['Total horas extra', '', hm(tot.worked), (tot.extra<0?'-':'') + hm(Math.abs(tot.extra)), '']);
   const txt = rows.map(r => r.join('\t')).join('\n');
