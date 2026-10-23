@@ -13,6 +13,11 @@ Calculadora web de horas extra a partir del PDF de fichajes de un trabajador.
 
 Muestra el total de horas extra, el resumen por mes con gráfico y el detalle día a día. Marca los fichajes a revisar (sin salida, tramos de 0 min, un solo tramo) y permite corregir horas, contar un día como jornada completa o excluirlo. El botón «Copiar para Excel» copia la tabla.
 
+### Trabajador automático
+Al subir el PDF detecta el nombre y apellidos del trabajador (cabeceras como «Trabajador:», «Empleado:», «Nom i cognoms:», títulos tipo «Fichajes de …» o el nombre repetido en las filas) y lo rellena en el campo bajo la zona de subida. Avisa si un PDF parece de otra persona y se puede corregir a mano.
+
+![Trabajador](captura-trabajador.jpg)
+
 ### Días libres
 Convierte las horas extra en días libres: 1 día por cada 8 h extra (se puede cambiar). Permite descontar los días ya disfrutados, indica las horas que sobran para el siguiente día y muestra los días libres acumulados mes a mes.
 

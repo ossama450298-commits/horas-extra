@@ -170,6 +170,17 @@ details summary::before{content:"";width:7px;height:7px;border-right:2px solid c
 details[open] summary::before{transform:rotate(45deg)}
 details summary:hover{color:var(--ink)}
 details[open] summary{margin-bottom:8px}
+.worker-box{margin:4px 0 14px}
+.worker-field{position:relative}
+.worker-field svg{position:absolute;left:13px;top:50%;width:18px;height:18px;margin-top:-9px;color:var(--faint);pointer-events:none}
+.worker-field input{padding-left:40px;font-weight:600}
+.worker-field:has(+ .hint.auto) input{border-color:color-mix(in srgb,var(--plus) 45%,var(--line-strong));background:color-mix(in srgb,var(--plus-soft) 55%,var(--paper))}
+.worker-field:has(+ .hint.auto) svg{color:var(--plus)}
+.hint{display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:600;margin-top:8px;color:var(--muted);animation:rise .3s var(--ease)}
+.hint:empty{display:none}
+.hint::before{content:"";width:16px;height:16px;flex:none;border-radius:50%;background:currentColor;opacity:.9;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8'/%3E%3C/svg%3E") center/contain no-repeat;transform:scale(.5)}
+.hint.auto{color:var(--plus)} .hint.warn{color:var(--warn)}
 .status{font-size:.85rem;color:var(--muted);margin-top:12px;min-height:0}
 .status:not(:empty){display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--r-sm);background:var(--plus-soft);color:var(--ink-2)}
 .status:not(:empty)::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--plus);flex:none}
@@ -429,8 +440,6 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
         <div><div class="step-n">Paso 1</div><h2>Fichajes</h2></div>
       </div>
-      <label class="small" for="worker">Trabajador</label>
-      <input type="text" id="worker" placeholder="Nombre y apellidos">
       <div class="drop" id="drop" tabindex="0" role="button" aria-label="Subir PDF de fichajes">
         <div class="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg></div>
         <strong>Arrastra aquí el PDF o <u>haz clic para elegirlo</u></strong>
@@ -438,6 +447,14 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
         <div class="drop-meta" aria-hidden="true"><span>PDF</span><span>Varios archivos</span><span>Arrastrar y soltar</span></div>
       </div>
       <input type="file" id="file" accept="application/pdf,.pdf" multiple class="hidden">
+      <div class="worker-box">
+        <label class="small" for="worker">Trabajador</label>
+        <div class="worker-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <input type="text" id="worker" placeholder="Se detecta automáticamente al subir el PDF" autocomplete="off">
+        </div>
+        <div class="hint" id="workerHint" aria-live="polite"></div>
+      </div>
       <details>
         <summary>El PDF es una imagen escaneada o no se lee bien</summary>
         <p class="legend" style="margin-bottom:8px">Pega el texto de los fichajes (una línea por fichaje, con fecha, entrada y salida):</p>
@@ -567,7 +584,7 @@ const WD = ['dom','lun','mar','mié','jue','vie','sáb'];
 const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const KEY = 'horas-extra-v1';
 
-let state = { jornada: 480, jornadaSel: '8', mode: 'net', year: 'all', worker: '', freeEq: 480, freeTaken: 0, days: {} };
+let state = { jornada: 480, jornadaSel: '8', mode: 'net', year: 'all', worker: '', workerAuto: false, workerNote: '', freeEq: 480, freeTaken: 0, days: {} };
 // days[iso] = { sessions:[{s,e,m,flag}], status:'count'|'full'|'off', override:null|minutes, manual:bool }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
@@ -725,6 +742,69 @@ function pair(a, b){
 }
 function sumSessions(d){ return d.sessions.reduce((t,s) => t + s.m, 0); }
 
+/* ---------- detección del trabajador ---------- */
+const NAME_STOP = /\b(oficina|tienda|sede|barcelona|madrid|centro|departamento|total|registro|fichajes?|informe|p[aá]gina|entrada|salida|manual|web|app|empresa|horas|jornada|resumen|control|horario|periodo|per[ií]odo|fecha|notas?|tipo|ubicaci[oó]n|dispositivo|trabajador|empleado|usuario|nombre|apellidos?|sl|slu|sa|s\.l|s\.a)\b/i;
+function titleCase(t){
+  return t.toLowerCase().replace(/(^|[\s'’-])([a-záéíóúñüç])/g, (m, a, b) => a + b.toUpperCase())
+    .replace(/(^|\s)(De|Del|La|Las|Los|Y|I|Da)(?=\s)/g, (m, a, b) => a + b.toLowerCase());
+}
+function cleanName(t){
+  if(!t) return null;
+  t = t.split(/\s*(?:\||;|,|\(|\bdni\b|\bnif\b|\bnie\b|\bfecha\b|\bper[ií]odo\b|\bcentro\b|\bempresa\b|\bc[oó]digo\b|\bn[ºo°]\.?\s|\bid\b|\bdepartamento\b|\bpuesto\b|\bcargo\b|\bdesde\b|\bentre\b|\d)/i)[0]
+    .replace(/[.:\-–\s]+$/, '').replace(/^[.:\-–\s]+/, '').trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  if(words.length < 2 || words.length > 6) return null;
+  if(!words.every(w => /^[A-Za-zÁÉÍÓÚÑÜÇÀÈÒÏáéíóúñüçàèòï'’·.]+$/.test(w))) return null;
+  if(NAME_STOP.test(t)) return null;
+  if(words.filter(w => /^[A-ZÁÉÍÓÚÑÜÇÀÈÒ]/.test(w)).length < 2) return null;
+  return (t === t.toUpperCase() || t === t.toLowerCase()) ? titleCase(t) : t;
+}
+function detectWorker(lines){
+  const L = lines.map(l => String(l).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  // 1) «Trabajador: Nombre Apellidos», «Empleado - …», «Nom i cognoms: …»
+  const KEY = /(?:^|\b)(?:trabajador(?:a)?|treballador(?:a)?|emplead[oa]|empleat|nombre y apellidos|nombre completo|nom i cognoms|usuario|usuari|persona|colaborador(?:a)?|employee|worker|nombre|nom|name)\s*[:：\-–]\s*(.+)$/i;
+  for(const l of L){ const m = l.match(KEY); if(m){ const n = cleanName(m[1]); if(n) return n; } }
+  // 2) «Nombre: X» y «Apellidos: Y» por separado
+  let nom = null, ape = null;
+  for(const l of L){
+    let m = l.match(/\b(?:nombre|nom)\s*[:\-–]\s*([A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç' ]+?)(?=\s+(?:apellidos?|cognoms?)\b|$)/i); if(m && !nom) nom = m[1].trim();
+    m = l.match(/\b(?:apellidos?|cognoms?)\s*[:\-–]\s*(.+)$/i); if(m && !ape) ape = m[1];
+  }
+  if(nom && ape){ const n = cleanName(nom + ' ' + ape); if(n) return n; }
+  // 3) títulos tipo «Registro de fichajes - Cesc Boada» o «Fichajes de Cesc Boada»
+  for(const l of L.slice(0, 20)){
+    if(!/\b(fichajes|registro|informe|control horario|jornada|horas)\b/i.test(l)) continue;
+    for(const m of l.matchAll(/\s(?:de|del|-|–|:)\s/g)){ const n = cleanName(l.slice(m.index + m[0].length)); if(n) return n; }
+  }
+  // 4) nombre repetido en las filas de fichaje
+  const rows = L.filter(l => /\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/.test(l) && /\d{1,2}:\d{2}/.test(l));
+  if(rows.length >= 3){
+    const cnt = {};
+    for(const r of rows){
+      const seen = new Set();
+      for(const m of r.matchAll(/[A-ZÁÉÍÓÚÑÜÇ][A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç'’]+(?:\s+(?:de |del |la |y |i )?[A-ZÁÉÍÓÚÑÜÇ][A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç'’]+){1,4}/g)){
+        const n = cleanName(m[0]); if(n && !seen.has(n)){ seen.add(n); cnt[n] = (cnt[n] || 0) + 1; }
+      }
+    }
+    const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+    if(best && cnt[best] >= Math.max(3, rows.length * 0.5)) return best;
+  }
+  return null;
+}
+const normName = t => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+function detectFrom(lines){
+  const name = detectWorker(lines);
+  if(!name){ if(!state.worker) state.workerNote = 'miss'; return; }
+  if(!state.worker || (state.workerAuto && Object.keys(state.days).length === 0)){
+    state.worker = name; state.workerAuto = true; state.workerNote = 'auto';
+    const wi = document.getElementById('worker'); if(wi) wi.value = name;
+  } else if(normName(state.worker) !== normName(name)){
+    state.workerNote = 'other:' + name;
+  } else if(state.workerAuto){
+    state.workerNote = 'auto';
+  }
+}
+
 async function readPdf(file){
   if(!window.pdfjsLib) throw new Error('No se ha podido cargar el lector de PDF. Comprueba la conexión y recarga la página.');
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -755,6 +835,8 @@ async function handleFiles(files){
     for(const f of files){
       st.textContent = 'Leyendo ' + f.name + '…';
       const lines = await readPdf(f);
+      if(!Object.keys(state.days).length && state.workerAuto){ state.worker = ''; state.workerAuto = false; }
+      detectFrom(lines);
       total += parseLines(lines);
     }
     if(total === 0){
@@ -827,6 +909,11 @@ function render(){
   if(state.jornadaSel === 'custom' && document.activeElement !== $('#customH')) $('#customH').value = hm(state.jornada);
   document.querySelectorAll('input[name=mode]').forEach(r => r.checked = r.value === state.mode);
   if(document.activeElement !== $('#worker')) $('#worker').value = state.worker || '';
+  const hint = $('#workerHint'), wn = state.workerNote || '';
+  if(wn === 'auto' && state.workerAuto && state.worker){ hint.className = 'hint auto'; hint.textContent = 'Detectado automáticamente en el PDF'; }
+  else if(wn.startsWith('other:')){ hint.className = 'hint warn'; hint.textContent = 'El PDF parece ser de ' + wn.slice(6) + '. Revisa que todos los fichajes sean del mismo trabajador.'; }
+  else if(wn === 'miss' && !state.worker){ hint.className = 'hint'; hint.textContent = 'No se ha encontrado el nombre en el PDF. Escríbelo a mano.'; }
+  else { hint.className = 'hint'; hint.textContent = ''; }
 
   const years = [...new Set(Object.keys(state.days).map(i => i.slice(0,4)))].sort();
   const ysel = $('#year');
@@ -972,7 +1059,10 @@ fileIn.addEventListener('change', () => { if(fileIn.files.length) handleFiles([.
 drop.addEventListener('drop', e => { const f = [...e.dataTransfer.files].filter(f => /pdf$/i.test(f.name) || f.type === 'application/pdf'); if(f.length) handleFiles(f); });
 
 $('#pasteBtn').addEventListener('click', () => {
-  const n = parseLines($('#paste').value.split(/\r?\n/));
+  const pl = $('#paste').value.split(/\r?\n/);
+  if(!Object.keys(state.days).length && state.workerAuto){ state.worker = ''; state.workerAuto = false; }
+  detectFrom(pl);
+  const n = parseLines(pl);
   const st = $('#status'); st.classList.toggle('err', n === 0);
   st.textContent = n ? 'Añadidos ' + n + ' tramos desde el texto pegado.' : 'No se ha reconocido ningún fichaje en el texto. Cada línea necesita una fecha y la hora de entrada y salida.';
   if(n){ $('#paste').value = ''; pickYear(); }
@@ -988,7 +1078,7 @@ document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () =
 $('#customH').addEventListener('input', e => { const v = parseHM(e.target.value); if(v && v > 0 && v <= 1440){ state.jornada = v; save(); render(); } });
 document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => { state.mode = r.value; save(); render(); }));
 $('#year').addEventListener('change', e => { state.year = e.target.value; save(); render(); });
-$('#worker').addEventListener('input', e => { state.worker = e.target.value; save(); render(); });
+$('#worker').addEventListener('input', e => { state.worker = e.target.value; state.workerAuto = false; state.workerNote = ''; save(); render(); });
 $('#onlyFlags').addEventListener('change', render);
 $('#onlyNotes').addEventListener('change', render);
 $('#freeEq').addEventListener('input', e => { const v = parseHM(e.target.value); if(v && v > 0){ state.freeEq = v; save(); render(); } });
@@ -1022,6 +1112,8 @@ $('#addBtn').addEventListener('click', () => {
 $('#clearBtn').addEventListener('click', () => {
   if(!confirm('¿Borrar todos los fichajes cargados?')) return;
   state.days = {}; state.year = 'all'; $('#status').textContent = '';
+  if(state.workerAuto){ state.worker = ''; state.workerAuto = false; }
+  state.workerNote = '';
   save(); render();
 });
 
