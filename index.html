@@ -620,7 +620,7 @@ function toIso(d, mo, y){
   return y + '-' + String(mo).padStart(2,'0') + '-' + String(d).padStart(2,'0');
 }
 
-const IGNORE = new Set(['lunes','martes','miercoles','miércoles','jueves','viernes','sabado','sábado','domingo','lun','mar','mié','mie','jue','vie','sáb','sab','dom','entrada','salida','fichaje','fichajes','total','horas','min','manual','web','app','móvil','movil','cerrado','abierto','completo','curso','en','de','del','la','el','y']);
+const IGNORE = new Set(['lunes','martes','miercoles','miércoles','jueves','viernes','sabado','sábado','domingo','lun','mar','mié','mie','jue','vie','sáb','sab','dom','entrada','salida','fichaje','fichajes','total','horas','min','manual','web','app','móvil','movil','cerrado','abierto','completo','curso','en','de','del','la','el','y','tancat','obert','esborrar','tancar','editar','eliminar','borrar','cerrar','curs','estat','accions','acciones','estado','notes','notas','ubicacio','ubicació','ubicacion','ubicación','durada','duración','duracion','usuari','usuario']);
 function isWordy(t){ const w = t.toLowerCase().replace(/[^a-záéíóúñü]/g,''); return w.length >= 2 && !IGNORE.has(w); }
 function splitNote(rest){
   const tk = rest.split(' ').filter(Boolean);
@@ -632,11 +632,30 @@ function splitNote(rest){
   return { head: rest, note: '' };
 }
 function timesIn(str){ return [...str.matchAll(TIME_RE)].map(m => (+m[1])*60 + (+m[2])); }
-function cleanNote(n){ return n.replace(/\b\d{1,3}\s*h\s*\d{1,2}\s*m(in)?\b/gi,' ').replace(/\s+/g,' ').replace(/^[\s\-–:|]+|[\s\-–:|]+$/g,'').trim(); }
+const STATUS_END = /(?:\s+(?:tancat|obert|esborrar|tancar|editar|eliminar|borrar|cerrar|cerrado|abierto|curs\)?|\(en|---|—|-))+\s*$/i;
+function cleanNote(n){
+  n = n.replace(/\b\d{1,3}\s*h\s*\d{1,2}\s*m(in)?\b/gi,' ').replace(/📍\s*/g,' ').replace(/-?\b\d{1,3}\.\d{3,},?/g,' ')
+       .replace(/(^|\s)-{2,}(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
+  n = (' ' + n).replace(STATUS_END, '').trim();
+  return n.replace(/^[\s\-–:|]+|[\s\-–:|]+$/g,'').trim();
+}
 
 function parseLines(lines){
   let lastDate = null, added = 0, lastSess = null, seen = new Set();
+  // pend: registro en curso cuyas fechas y notas llegan en líneas distintas a las horas (tablas de varias líneas)
+  let pend = null;
   for(const iso in state.days) for(const s of state.days[iso].sessions) seen.add(iso+'|'+s.s+'|'+s.e+'|'+s.m);
+  const push = (date, s) => {
+    const k = date+'|'+s.s+'|'+s.e+'|'+s.m+(s.noteOnly ? '|'+(s.note||'') : '');
+    if(seen.has(k)) return null; seen.add(k);
+    if(!state.days[date]) state.days[date] = { sessions: [], status: 'count', override: null, manual: false };
+    state.days[date].sessions.push(s); added++; return s;
+  };
+  const flush = () => { // una fecha con nota que no llegó a tener horas: se guarda como nota del día
+    if(pend && !pend.used && pend.note) push(pend.date, { s: null, e: null, m: 0, flag: null, noteOnly: true, note: pend.note });
+    pend = null;
+  };
+  const addNote = (a, b) => [a, b].filter(Boolean).join(' ').trim();
   for(const raw of lines){
     const line = raw.replace(/\s+/g,' ').trim(); if(!line) continue;
     const dates = [];
@@ -650,38 +669,52 @@ function parseLines(lines){
       if(tail){ times = times.concat(timesIn(tail[1])); note = note.slice(0, tail.index); }
     }
     note = cleanNote(note);
-    if(note.length < 6) note = '';
+    if(note.length < 4 || !/[a-záéíóúñü]{2,}/i.test(note)) note = '';
     const dm = head.match(DUR_RE);
     const dur = dm ? (+dm[1])*60 + (+dm[2]) : null;
-    if(!dates.length && !times.length && dur == null){
+    const openMark = /\(en\b|\ben curs|\ben curso|\bobert\b|\babierto\b|\bopen\b/i.test(line);
+
+    if(!dates.length && !times.length){
+      if(pend && !pend.used){ pend.note = addNote(pend.note, note); if(openMark) pend.open = true; continue; }
       // continuación de una nota partida en varias líneas
-      if(lastSess && lastSess.note && note && !/p[aá]gina|page|\b\d+\s*(de|\/)\s*\d+\b/i.test(line)) lastSess.note += ' ' + cleanNote(rest);
-      else lastSess = null;
+      if(dur == null && lastSess && lastSess.note && note && !/p[aá]gina|page|\b\d+\s*(de|\/)\s*\d+\b/i.test(line)) lastSess.note += ' ' + note;
+      else if(dur == null) lastSess = null;
       continue;
     }
-    if(dates.length) lastDate = dates[0];
-    const date = dates[0] || (times.length >= 2 ? lastDate : null);
+    if(dates.length && !times.length && (dur == null || openMark)){
+      flush();
+      lastDate = dates[0]; lastSess = null;
+      pend = { date: dates[0], note, open: openMark, used: false };
+      continue;
+    }
+    if(dates.length) { if(pend && dates[0] !== pend.date) flush(); lastDate = dates[0]; }
+    const usePend = !dates.length && pend && !pend.used;
+    const date = dates[0] || ((times.length >= 2 || (times.length === 1 && usePend)) ? lastDate : null);
     if(!date){ lastSess = null; continue; }
-    const sess = [];
-    if(times.length >= 2){
-      sess.push(pair(times[0], times[1]));
-      if(times.length >= 4 && times[2] >= times[1] && times[3] > times[2]) sess.push(pair(times[2], times[3]));
-    } else if(times.length === 1){
-      sess.push({ s: times[0], e: null, m: dur || 0, flag: 'Fichaje sin salida' });
+    const sess = [], used = new Set();
+    if(times.length >= 2 && !(usePend && pend.open)){
+      sess.push(pair(times[0], times[1])); used.add(0); used.add(1);
+      if(times.length >= 4 && times[2] >= times[1] && times[3] > times[2]){ sess.push(pair(times[2], times[3])); used.add(2); used.add(3); }
+    } else if(times.length >= 1){
+      const open = (usePend && pend.open) || openMark;
+      sess.push({ s: times[0], e: null, m: open ? 0 : (dur || 0), flag: open ? 'Sesión abierta (en curso)' : 'Fichaje sin salida' }); used.add(0);
     } else if(dur != null){
       sess.push({ s: null, e: null, m: dur, flag: dur === 0 ? 'Tramo de 0 min' : null });
     } else if(note){
       sess.push({ s: null, e: null, m: 0, flag: null, noteOnly: true });
     } else { lastSess = null; continue; }
-    if(note) sess[sess.length - 1].note = note;
-    lastSess = null;
-    for(const s of sess){
-      const k = date+'|'+s.s+'|'+s.e+'|'+s.m+(s.noteOnly ? '|'+note : '');
-      if(seen.has(k)) continue; seen.add(k);
-      if(!state.days[date]) state.days[date] = { sessions: [], status: 'count', override: null, manual: false };
-      state.days[date].sessions.push(s); added++; lastSess = s;
+    let fullNote = note;
+    if(usePend){
+      fullNote = addNote(pend.note, note);
+      // horas sueltas que formaban parte de la nota («Salida a las» + «17:45»)
+      if(pend.note){ const extra = times.filter((t, i) => !used.has(i)).map(clock).join(' '); if(extra) fullNote = addNote(pend.note, extra + (note ? ' ' + note : '')); }
+      pend.used = true;
     }
+    if(fullNote) sess[sess.length - 1].note = fullNote;
+    lastSess = null;
+    for(const s of sess){ const r = push(date, s); if(r) lastSess = r; }
   }
+  flush();
   // textos que se repiten en muchas filas son columnas (oficina, tipo…), no notas
   const cnt = {}; let totS = 0;
   for(const iso in state.days) for(const s of state.days[iso].sessions){ totS++; if(s.note) cnt[s.note] = (cnt[s.note]||0) + 1; }
@@ -711,18 +744,35 @@ function noteSuggest(d){
   const txt = d.sessions.map(s => s.note).filter(Boolean).join(' · ');
   if(!txt) return null;
   const raw = sumSessions(d);
-  const iv = d.sessions.filter(s => s.s != null && s.e != null).map(s => [s.s, s.s + s.m]);
-  const extra = [];
-  const add = (a, b) => { if(b <= a && b < 720) b += 720; if(b > a && b - a <= 14*60) extra.push([a, b]); };
+  // tramos del día como intervalos editables
+  const all = d.sessions.filter(s => s.s != null).map(s => ({ a: s.s, b: s.e == null ? s.s : s.s + (s.m || 0), zero: !s.m }));
+  const added = [];
+  let changed = false;
+  const hm2 = (h, m) => (+h)*60 + (+m || 0);
+  const addRange = (a, b) => { if(b <= a && b < 720) b += 720; if(b > a && b - a <= 14*60){ added.push({ a, b }); changed = true; } };
   for(const m of txt.matchAll(/(?:\bde|\bdesde)\s+(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?\s*(?:h\b|horas?)?\s*(?:a|hasta)\s+(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?/gi))
-    add((+m[1])*60 + (+m[2]||0), (+m[3])*60 + (+m[4]||0));
-  if(!extra.length) for(const m of txt.matchAll(/\b(\d{1,2}):(\d{2})\s*(?:-|–|a)\s*(\d{1,2}):(\d{2})\b/g))
-    add((+m[1])*60 + (+m[2]), (+m[3])*60 + (+m[4]));
-  const open = d.sessions.find(s => s.s != null && (s.e == null || s.m === 0));
-  const ms = txt.match(/\bsal[a-záéíóú]*\s+(?:a\s+)?(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?/i);
-  if(open && ms) add(open.s, (+ms[1])*60 + (+ms[2]||0));
+    addRange(hm2(m[1], m[2]), hm2(m[3], m[4]));
+  if(!added.length) for(const m of txt.matchAll(/\b(\d{1,2}):(\d{2})\s*(?:-|–|a)\s*(\d{1,2}):(\d{2})\b/g))
+    addRange(hm2(m[1], m[2]), hm2(m[3], m[4]));
+  if(!added.length){
+    // «He entrado a las 7:50»: adelanta el inicio del tramo siguiente
+    const me = txt.match(/\bentr[a-záéíóú]*\s+(?:a\s+)?(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?/i);
+    if(me){
+      const t = hm2(me[1], me[2]);
+      const tg = all.filter(x => x.a > t && x.a - t <= 7*60).sort((x, y) => x.a - y.a)[0];
+      if(tg){ tg.a = t; if(tg.b < tg.a) tg.b = tg.a; changed = true; }
+    }
+    // «Salí / Salida a las 17:45»: fija el final del tramo correspondiente
+    const ms = txt.match(/\bsal[a-záéíóú]*\s+(?:a\s+)?(?:las\s+)?(\d{1,2})(?:[:.h](\d{2}))?/i);
+    if(ms){
+      let t = hm2(ms[1], ms[2]);
+      let tg = all.filter(x => x.a < t && t - x.a <= 14*60).sort((x, y) => y.a - x.a)[0];
+      if(!tg && t < 720){ t += 720; tg = all.filter(x => x.a < t && t - x.a <= 14*60).sort((x, y) => y.a - x.a)[0]; }
+      if(tg){ tg.b = t; changed = true; }
+    }
+  }
   const res = { text: txt, minutes: null, full: false, has: false, forgot: /olvid|no (he )?fich/i.test(txt) };
-  if(extra.length){ res.minutes = unionLen(iv.concat(extra)); res.has = res.minutes !== raw; }
+  if(changed){ res.minutes = unionLen(all.concat(added).map(x => [x.a, x.b])); res.has = res.minutes !== raw; }
   else if(/vacaci|festiv|\bbaja\b|permiso|m[eé]dic|asuntos propios|formaci[oó]n|curso/i.test(txt)){ res.full = true; res.has = true; }
   return res;
 }
@@ -738,32 +788,38 @@ function applyNote(iso){
 
 function pair(a, b){
   let m = b - a; if(m < 0) m += 1440;
-  return { s: a, e: b, m, flag: m === 0 ? 'Tramo de 0 min' : (m > 14*60 ? 'Tramo muy largo' : null) };
+  if(m > 14*60) return { s: a, e: b, m: 0, raw: m, flag: 'Salida olvidada: tramo de ' + fmt(m) + ' sin contar' };
+  return { s: a, e: b, m, flag: m === 0 ? 'Tramo de 0 min' : null };
 }
 function sumSessions(d){ return d.sessions.reduce((t,s) => t + s.m, 0); }
 
 /* ---------- detección del trabajador ---------- */
-const NAME_STOP = /\b(oficina|tienda|sede|barcelona|madrid|centro|departamento|total|registro|fichajes?|informe|p[aá]gina|entrada|salida|manual|web|app|empresa|horas|jornada|resumen|control|horario|periodo|per[ií]odo|fecha|notas?|tipo|ubicaci[oó]n|dispositivo|trabajador|empleado|usuario|nombre|apellidos?|sl|slu|sa|s\.l|s\.a)\b/i;
+const NAME_STOP = /\b(sortida|durada|ubicaci[oó]|estat|accions|acciones|estado|tancat|obert|esborrar|tancar|filtrar|filtres|filtros|registres|usuari|usuario|panell|panel|admin|exportar|csv|sessions|sesiones|entrada|des|fins|oficina|tienda|sede|barcelona|madrid|centro|departamento|total|registro|fichajes?|informe|p[aá]gina|entrada|salida|manual|web|app|empresa|horas|jornada|resumen|control|horario|periodo|per[ií]odo|fecha|notas?|tipo|ubicaci[oó]n|dispositivo|trabajador|empleado|usuario|nombre|apellidos?|sl|slu|sa|s\.l|s\.a)\b/i;
 function titleCase(t){
   return t.toLowerCase().replace(/(^|[\s'’-])([a-záéíóúñüç])/g, (m, a, b) => a + b.toUpperCase())
     .replace(/(^|\s)(De|Del|La|Las|Los|Y|I|Da)(?=\s)/g, (m, a, b) => a + b.toLowerCase());
 }
-function cleanName(t){
+function cleanName(t, minWords){
   if(!t) return null;
-  t = t.split(/\s*(?:\||;|,|\(|\bdni\b|\bnif\b|\bnie\b|\bfecha\b|\bper[ií]odo\b|\bcentro\b|\bempresa\b|\bc[oó]digo\b|\bn[ºo°]\.?\s|\bid\b|\bdepartamento\b|\bpuesto\b|\bcargo\b|\bdesde\b|\bentre\b|\d)/i)[0]
+  minWords = minWords || 2;
+  t = t.split(/\s*(?:\||;|,|\(|\bdni\b|\bnif\b|\bnie\b|\bfecha\b|\bper[ií]odo\b|\bcentro\b|\bempresa\b|\bc[oó]digo\b|\bn[ºo°]\.?\s|\bid\b|\bdepartamento\b|\bpuesto\b|\bcargo\b|\bdesde\b|\bentre\b|\bfiltrar\b|\bbuscar\b|\bcercar\b|\baplicar\b|\bexportar\b|\bdes de\b|\bfins\b|\bhasta\b|\d)/i)[0]
     .replace(/[.:\-–\s]+$/, '').replace(/^[.:\-–\s]+/, '').trim();
   const words = t.split(/\s+/).filter(Boolean);
-  if(words.length < 2 || words.length > 6) return null;
+  if(words.length < minWords || words.length > 6) return null;
+  if(words.length === 1 && (words[0].length < 3 || !/^[A-ZÁÉÍÓÚÑÜÇ]/.test(words[0]))) return null;
   if(!words.every(w => /^[A-Za-zÁÉÍÓÚÑÜÇÀÈÒÏáéíóúñüçàèòï'’·.]+$/.test(w))) return null;
   if(NAME_STOP.test(t)) return null;
-  if(words.filter(w => /^[A-ZÁÉÍÓÚÑÜÇÀÈÒ]/.test(w)).length < 2) return null;
+  if(words.filter(w => /^[A-ZÁÉÍÓÚÑÜÇÀÈÒ]/.test(w)).length < Math.min(2, words.length)) return null;
   return (t === t.toUpperCase() || t === t.toLowerCase()) ? titleCase(t) : t;
 }
 function detectWorker(lines){
   const L = lines.map(l => String(l).replace(/\s+/g, ' ').trim()).filter(Boolean);
   // 1) «Trabajador: Nombre Apellidos», «Empleado - …», «Nom i cognoms: …»
   const KEY = /(?:^|\b)(?:trabajador(?:a)?|treballador(?:a)?|emplead[oa]|empleat|nombre y apellidos|nombre completo|nom i cognoms|usuario|usuari|persona|colaborador(?:a)?|employee|worker|nombre|nom|name)\s*[:：\-–]\s*(.+)$/i;
-  for(const l of L){ const m = l.match(KEY); if(m){ const n = cleanName(m[1]); if(n) return n; } }
+  for(const l of L){ const m = l.match(KEY); if(m){ const n = cleanName(m[1], 1); if(n) return n; } }
+  // 1b) sin dos puntos, como en los filtros de los paneles: «Usuari Oussama», «Trabajador Cesc Boada»
+  const KEY2 = /(?:^|\s)(?:usuari|usuario|trabajador(?:a)?|treballador(?:a)?|emplead[oa]|empleat|employee|user)\s+([A-ZÁÉÍÓÚÑÜÇ][^\s].*)$/;
+  for(const l of L){ const m = l.match(KEY2); if(m){ const n = cleanName(m[1], 1); if(n) return n; } }
   // 2) «Nombre: X» y «Apellidos: Y» por separado
   let nom = null, ape = null;
   for(const l of L){
@@ -777,13 +833,13 @@ function detectWorker(lines){
     for(const m of l.matchAll(/\s(?:de|del|-|–|:)\s/g)){ const n = cleanName(l.slice(m.index + m[0].length)); if(n) return n; }
   }
   // 4) nombre repetido en las filas de fichaje
-  const rows = L.filter(l => /\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/.test(l) && /\d{1,2}:\d{2}/.test(l));
+  const rows = L.filter(l => /^#\s?\d+\s/.test(l) || (/\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/.test(l) && /\d{1,2}:\d{2}/.test(l)));
   if(rows.length >= 3){
     const cnt = {};
     for(const r of rows){
       const seen = new Set();
-      for(const m of r.matchAll(/[A-ZÁÉÍÓÚÑÜÇ][A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç'’]+(?:\s+(?:de |del |la |y |i )?[A-ZÁÉÍÓÚÑÜÇ][A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç'’]+){1,4}/g)){
-        const n = cleanName(m[0]); if(n && !seen.has(n)){ seen.add(n); cnt[n] = (cnt[n] || 0) + 1; }
+      for(const m of r.matchAll(/[A-ZÁÉÍÓÚÑÜÇ][A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç'’]+(?:\s+(?:de |del |la |y |i )?[A-ZÁÉÍÓÚÑÜÇ][A-Za-zÁÉÍÓÚÑÜÇáéíóúñüç'’]+){0,4}/g)){
+        const n = cleanName(m[0], 1); if(n && !seen.has(n)){ seen.add(n); cnt[n] = (cnt[n] || 0) + 1; }
       }
     }
     const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
