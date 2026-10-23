@@ -91,11 +91,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.9rem;margin-top:4px
 .bigcap{color:var(--muted);margin-top:8px;font-size:.95rem}
 .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 22px}
 .fact{border-left:3px solid var(--line);padding-left:12px}
-.fact .v{font-size:1.45rem;font-weight:700;font-variation-settings:"wdth" 110}
+.fact .v{font-size:1.3rem;font-weight:700;font-variation-settings:"wdth" 105;white-space:nowrap}
 .fact .k{font-size:.85rem;color:var(--muted)}
 .empty{text-align:center;color:var(--muted);padding:34px 10px}
-.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px;margin-bottom:16px}
 @media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.grid2>section,.setup>section,.result>div{min-width:0}
 .scroll{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:.92rem}
 th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -183,8 +184,8 @@ svg text{font-family:inherit;fill:var(--muted);font-size:11px}
         <div class="fact"><div class="v" id="fWorked">–</div><div class="k">trabajadas</div></div>
         <div class="fact"><div class="v" id="fExpected">–</div><div class="k">según jornada</div></div>
         <div class="fact"><div class="v" id="fDays">–</div><div class="k">días contados</div></div>
-        <div class="fact"><div class="v pos" id="fPlus">–</div><div class="k">días por encima</div></div>
-        <div class="fact"><div class="v neg" id="fMinus">–</div><div class="k">días por debajo</div></div>
+        <div class="fact"><div class="v pos" id="fPlus">–</div><div class="k" id="kPlus">días por encima</div></div>
+        <div class="fact"><div class="v neg" id="fMinus">–</div><div class="k" id="kMinus">días por debajo</div></div>
         <div class="fact"><div class="v" id="fFlags">–</div><div class="k">fichajes a revisar</div></div>
       </div>
     </div>
@@ -422,8 +423,10 @@ function render(){
   $('#fWorked').textContent = fmt(tot.worked);
   $('#fExpected').textContent = fmt(tot.expected);
   $('#fDays').textContent = tot.days;
-  $('#fPlus').textContent = tot.plus + '  (' + fmt(tot.plusMin, true) + ')';
-  $('#fMinus').textContent = tot.minus + '  (' + fmt(tot.minusMin, true) + ')';
+  $('#fPlus').textContent = fmt(tot.plusMin, true);
+  $('#kPlus').textContent = 'en ' + tot.plus + ' días por encima';
+  $('#fMinus').textContent = fmt(tot.minusMin, true);
+  $('#kMinus').textContent = 'en ' + tot.minus + ' días por debajo';
   $('#fFlags').textContent = tot.flags;
 
   // months
