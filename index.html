@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Horas extra del año</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<style>
+:root{
+  --bg:#E8ECF0; --paper:#FFFFFF; --ink:#17212C; --muted:#586676; --line:#CDD5DE;
+  --accent:#1D4ED8; --accent-soft:#E3EAFD; --plus:#11804E; --plus-soft:#E1F3EA;
+  --minus:#BE3A2E; --minus-soft:#FBE7E4; --warn:#9A6512; --warn-soft:#FBF0DC;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F151C; --paper:#17202A; --ink:#E5EBF1; --muted:#93A1B0; --line:#2B3845;
+    --accent:#86A6FF; --accent-soft:#1D2A4A; --plus:#44CC8A; --plus-soft:#14301F;
+    --minus:#F2766A; --minus-soft:#3A1C1A; --warn:#E8B451; --warn-soft:#352812;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F151C; --paper:#17202A; --ink:#E5EBF1; --muted:#93A1B0; --line:#2B3845;
+  --accent:#86A6FF; --accent-soft:#1D2A4A; --plus:#44CC8A; --plus-soft:#14301F;
+  --minus:#F2766A; --minus-soft:#3A1C1A; --warn:#E8B451; --warn-soft:#352812;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-variation-settings:"wdth" 100;font-size:16px;line-height:1.5;
+  font-variant-numeric:tabular-nums}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);line-height:1;margin:0 0 10px;font-weight:800;
+  font-variation-settings:"wdth" 125;letter-spacing:-.02em}
+h2{font-size:1.25rem;margin:0 0 14px;font-weight:700;font-variation-settings:"wdth" 112}
+.lead{color:var(--muted);max-width:62ch;margin:0 0 26px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}
+.setup{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:760px){.setup{grid-template-columns:1fr}}
+.step{display:flex;gap:10px;align-items:baseline;margin-bottom:12px}
+.step b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;
+  background:var(--ink);color:var(--paper);font-size:.85rem;flex:none}
+.step span{font-weight:700;font-size:1.05rem}
+label.small{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:90px;resize:vertical;font-size:.85rem}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;cursor:pointer;
+  transition:border-color .15s,background .15s;margin-bottom:12px}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{display:block;font-size:1.05rem}
+.drop small{color:var(--muted)}
+details summary{cursor:pointer;color:var(--muted);font-size:.9rem;margin-top:4px}
+.status{font-size:.9rem;color:var(--muted);margin-top:10px;min-height:1.4em}
+.status.err{color:var(--minus)}
+/* jornada tiles: the memorable element */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:12px;
+  padding:14px 6px 10px;cursor:pointer;text-align:center;transition:transform .12s,border-color .12s}
+.tile:hover{transform:translateY(-2px)}
+.tile .n{display:block;font-size:2.6rem;line-height:1;font-weight:800;font-variation-settings:"wdth" 125}
+.tile .u{font-size:.85rem;color:var(--muted)}
+.tile[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tile[aria-pressed="true"] .u{color:inherit;opacity:.75}
+.custom{display:none;margin-top:10px;gap:8px;align-items:center}
+.custom.show{display:flex}
+.custom input{max-width:110px}
+.opts{margin-top:16px;display:grid;gap:10px}
+.radio{display:flex;gap:8px;align-items:flex-start;font-size:.92rem}
+.radio input{margin-top:4px;accent-color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row>div{flex:1;min-width:140px}
+/* result */
+.result{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;margin-bottom:16px}
+@media (max-width:760px){.result{grid-template-columns:1fr}}
+.big{font-size:clamp(3.2rem,11vw,6.4rem);line-height:.9;font-weight:800;font-variation-settings:"wdth" 125;
+  letter-spacing:-.03em}
+.big.pos{color:var(--plus)} .big.neg{color:var(--minus)}
+.bigcap{color:var(--muted);margin-top:8px;font-size:.95rem}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 22px}
+.fact{border-left:3px solid var(--line);padding-left:12px}
+.fact .v{font-size:1.45rem;font-weight:700;font-variation-settings:"wdth" 110}
+.fact .k{font-size:.85rem;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:34px 10px}
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:.82rem}
+td.num,th.num{text-align:right}
+.pos{color:var(--plus)} .neg{color:var(--minus)}
+tr.off td{opacity:.45}
+tr.month td{background:var(--bg);font-weight:700;font-variation-settings:"wdth" 112}
+.sess{color:var(--muted);white-space:normal;min-width:170px}
+.flag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;margin:2px 4px 0 0;
+  background:var(--warn-soft);color:var(--warn);white-space:nowrap}
+.hin{width:84px;text-align:right;padding:5px 8px}
+.hin.edited{border-color:var(--accent);background:var(--accent-soft)}
+td select{width:auto;padding:5px 6px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
+.btn{font:inherit;font-weight:600;font-size:.9rem;border-radius:8px;padding:8px 14px;cursor:pointer;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0F151C}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0F151C}}
+.btn.ghost{background:transparent}
+.legend{font-size:.85rem;color:var(--muted);margin-top:6px}
+svg text{font-family:inherit;fill:var(--muted);font-size:11px}
+.hidden{display:none!important}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Horas extra del año</h1>
+  <p class="lead">Sube el PDF con los fichajes del trabajador, elige su jornada diaria y la página suma lo trabajado cada día y lo compara con lo que tocaba. Todo se calcula en tu navegador: el PDF no se envía a ningún sitio.</p>
+
+  <div class="setup">
+    <section class="panel">
+      <div class="step"><b>1</b><span>Fichajes</span></div>
+      <div class="row" style="margin-bottom:12px">
+        <div><label class="small" for="worker">Trabajador</label><input type="text" id="worker" placeholder="Nombre y apellidos"></div>
+      </div>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Subir PDF de fichajes">
+        <strong>Arrastra aquí el PDF o haz clic para elegirlo</strong>
+        <small>Puedes subir varios PDF (por ejemplo, uno por mes) y se suman</small>
+      </div>
+      <input type="file" id="file" accept="application/pdf,.pdf" multiple class="hidden">
+      <details>
+        <summary>El PDF es una imagen escaneada o no se lee bien</summary>
+        <p class="legend">Pega el texto de los fichajes (una línea por fichaje, con fecha, entrada y salida):</p>
+        <textarea id="paste" placeholder="01/07/2026 08:02 13:30&#10;01/07/2026 14:30 18:05"></textarea>
+        <button class="btn" id="pasteBtn" style="margin-top:8px">Añadir texto pegado</button>
+      </details>
+      <div class="status" id="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <div class="step"><b>2</b><span>Jornada diaria</span></div>
+      <div class="tiles" role="group" aria-label="Horas de jornada diaria">
+        <button class="tile" data-h="4"><span class="n">4</span><span class="u">horas</span></button>
+        <button class="tile" data-h="5"><span class="n">5</span><span class="u">horas</span></button>
+        <button class="tile" data-h="8"><span class="n">8</span><span class="u">horas</span></button>
+        <button class="tile" data-h="custom"><span class="n">+</span><span class="u">otra</span></button>
+      </div>
+      <div class="custom" id="customBox">
+        <input type="text" id="customH" placeholder="6:30" aria-label="Jornada personalizada (h:mm)">
+        <span class="legend">horas al día (h:mm)</span>
+      </div>
+      <div class="opts">
+        <label class="radio"><input type="radio" name="mode" value="net" checked>
+          <span><b>Saldo neto.</b> Los días que hace de menos restan de los que hace de más.</span></label>
+        <label class="radio"><input type="radio" name="mode" value="pos">
+          <span><b>Solo excesos.</b> Suma lo que pasa de la jornada y no descuenta los días cortos.</span></label>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div><label class="small" for="year">Periodo</label><select id="year"><option value="all">Todo</option></select></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" id="resultPanel" style="margin-bottom:16px">
+    <div class="empty" id="emptyMsg">Sube un PDF de fichajes para ver el cálculo.</div>
+    <div class="result hidden" id="result">
+      <div>
+        <div class="big" id="bigNum">+0h 00m</div>
+        <div class="bigcap" id="bigCap">horas extra</div>
+      </div>
+      <div class="facts">
+        <div class="fact"><div class="v" id="fWorked">–</div><div class="k">trabajadas</div></div>
+        <div class="fact"><div class="v" id="fExpected">–</div><div class="k">según jornada</div></div>
+        <div class="fact"><div class="v" id="fDays">–</div><div class="k">días contados</div></div>
+        <div class="fact"><div class="v pos" id="fPlus">–</div><div class="k">días por encima</div></div>
+        <div class="fact"><div class="v neg" id="fMinus">–</div><div class="k">días por debajo</div></div>
+        <div class="fact"><div class="v" id="fFlags">–</div><div class="k">fichajes a revisar</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid2 hidden" id="monthsArea">
+    <section class="panel">
+      <h2>Saldo por mes</h2>
+      <div class="scroll"><svg id="chart" width="100%" height="230" role="img" aria-label="Saldo de horas por mes"></svg></div>
+    </section>
+    <section class="panel">
+      <h2>Resumen mensual</h2>
+      <div class="scroll"><table id="monthTable"></table></div>
+    </section>
+  </div>
+
+  <section class="panel hidden" id="detailArea">
+    <div class="toolbar">
+      <h2 style="margin:0">Día a día</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label class="radio" style="align-items:center"><input type="checkbox" id="onlyFlags"> Solo días a revisar</label>
+        <button class="btn" id="copyBtn">Copiar para Excel</button>
+        <button class="btn ghost" id="clearBtn">Borrar todo</button>
+      </div>
+    </div>
+    <p class="legend" style="margin-top:0">Puedes corregir las horas de un día escribiéndolas encima (h:mm), marcarlo como jornada completa o excluirlo (festivo, vacaciones, fichaje erróneo).</p>
+    <div class="scroll"><table id="dayTable"></table></div>
+    <div class="row" style="margin-top:16px">
+      <div><label class="small" for="addDate">Añadir día que falta</label><input type="date" id="addDate"></div>
+      <div><label class="small" for="addH">Horas trabajadas</label><input type="text" id="addH" placeholder="8:00"></div>
+      <div style="flex:0"><button class="btn primary" id="addBtn">Añadir día</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const WD = ['dom','lun','mar','mié','jue','vie','sáb'];
+const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const KEY = 'horas-extra-v1';
+
+let state = { jornada: 480, jornadaSel: '8', mode: 'net', year: 'all', worker: '', days: {} };
+// days[iso] = { sessions:[{s,e,m,flag}], status:'count'|'full'|'off', override:null|minutes, manual:bool }
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function load(){ try{ const r = localStorage.getItem(KEY); if(r){ state = Object.assign(state, JSON.parse(r)); } }catch(e){} }
+
+function fmt(m, signed){
+  const neg = m < 0; m = Math.round(Math.abs(m));
+  const s = Math.floor(m/60) + 'h ' + String(m%60).padStart(2,'0') + 'm';
+  return (signed ? (neg ? '−' : '+') : (neg ? '−' : '')) + s;
+}
+function hm(m){ return m==null ? '' : Math.floor(m/60) + ':' + String(Math.round(m%60)).padStart(2,'0'); }
+function clock(m){ m = ((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
+function parseHM(str){
+  if(str==null) return null; str = String(str).trim().replace(',', '.');
+  if(!str) return null;
+  let m = str.match(/^(\d{1,3})\s*[:h]\s*(\d{1,2})\s*m?$/i);
+  if(m) return (+m[1])*60 + (+m[2]);
+  m = str.match(/^\d+(\.\d+)?$/);
+  if(m) return Math.round(parseFloat(str)*60);
+  return null;
+}
+function dayStatus(st){ return st; }
+
+/* ---------- parsing ---------- */
+const DATE_RE = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/g;
+const ISO_RE = /\b(20\d{2})-(\d{2})-(\d{2})\b/g;
+const TIME_RE = /(?<![\d:.])([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?(?![\d])/g;
+const DUR_RE = /(\d{1,3})\s*h\s*(\d{1,2})\s*m/i;
+
+function toIso(d, mo, y){
+  d = +d; mo = +mo; y = +y; if(y < 100) y += 2000;
+  if(mo < 1 || mo > 12 || d < 1 || d > 31 || y < 2000 || y > 2100) return null;
+  return y + '-' + String(mo).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+}
+
+function parseLines(lines){
+  let lastDate = null, added = 0, seen = new Set();
+  for(const iso in state.days) for(const s of state.days[iso].sessions) seen.add(iso+'|'+s.s+'|'+s.e+'|'+s.m);
+  for(const raw of lines){
+    const line = raw.replace(/\s+/g,' ').trim(); if(!line) continue;
+    const dates = [];
+    for(const m of line.matchAll(DATE_RE)){ const i = toIso(m[1],m[2],m[3]); if(i) dates.push(i); }
+    for(const m of line.matchAll(ISO_RE)){ const i = toIso(m[3],m[2],m[1]); if(i) dates.push(i); }
+    const rest = line.replace(DATE_RE,' ').replace(ISO_RE,' ');
+    const times = [...rest.matchAll(TIME_RE)].map(m => (+m[1])*60 + (+m[2]));
+    const dm = rest.match(DUR_RE);
+    const dur = dm ? (+dm[1])*60 + (+dm[2]) : null;
+    if(dates.length) lastDate = dates[0];
+    const date = dates[0] || (times.length >= 2 ? lastDate : null);
+    if(!date) continue;
+    const sess = [];
+    if(times.length >= 2){
+      sess.push(pair(times[0], times[1]));
+      if(times.length >= 4 && times[2] >= times[1] && times[3] > times[2]) sess.push(pair(times[2], times[3]));
+    } else if(times.length === 1){
+      sess.push({ s: times[0], e: null, m: dur || 0, flag: 'Fichaje sin salida' });
+    } else if(dur != null){
+      sess.push({ s: null, e: null, m: dur, flag: dur === 0 ? 'Tramo de 0 min' : null });
+    } else continue;
+    for(const s of sess){
+      const k = date+'|'+s.s+'|'+s.e+'|'+s.m;
+      if(seen.has(k)) continue; seen.add(k);
+      if(!state.days[date]) state.days[date] = { sessions: [], status: 'count', override: null, manual: false };
+      state.days[date].sessions.push(s); added++;
+    }
+  }
+  for(const iso in state.days){
+    const d = state.days[iso];
+    d.sessions.sort((a,b) => (a.s ?? 9999) - (b.s ?? 9999));
+    if(!d.manual && d.override == null && d.status === 'count' && sumSessions(d) === 0) d.status = 'off';
+  }
+  return added;
+}
+function pair(a, b){
+  let m = b - a; if(m < 0) m += 1440;
+  return { s: a, e: b, m, flag: m === 0 ? 'Tramo de 0 min' : (m > 14*60 ? 'Tramo muy largo' : null) };
+}
+function sumSessions(d){ return d.sessions.reduce((t,s) => t + s.m, 0); }
+
+async function readPdf(file){
+  if(!window.pdfjsLib) throw new Error('No se ha podido cargar el lector de PDF. Comprueba la conexión y recarga la página.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+  const lines = [];
+  for(let p = 1; p <= pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const rows = [];
+    for(const it of tc.items){
+      if(!it.str || !it.str.trim()) continue;
+      const y = it.transform[5], x = it.transform[4];
+      let r = rows.find(r => Math.abs(r.y - y) < 3);
+      if(!r){ r = { y, items: [] }; rows.push(r); }
+      r.items.push({ x, s: it.str });
+    }
+    rows.sort((a,b) => b.y - a.y);
+    for(const r of rows){ r.items.sort((a,b) => a.x - b.x); lines.push(r.items.map(i => i.s).join(' ')); }
+  }
+  return lines;
+}
+
+async function handleFiles(files){
+  const st = $('#status'); st.classList.remove('err');
+  let total = 0;
+  try{
+    for(const f of files){
+      st.textContent = 'Leyendo ' + f.name + '…';
+      const lines = await readPdf(f);
+      total += parseLines(lines);
+    }
+    if(total === 0){
+      st.classList.add('err');
+      st.textContent = 'No se han encontrado fichajes en el PDF. Si es una imagen escaneada, pega el texto en el apartado de abajo.';
+    } else {
+      st.textContent = 'Añadidos ' + total + ' tramos de fichaje.';
+      pickYear();
+    }
+  }catch(e){
+    st.classList.add('err'); st.textContent = 'Error al leer el PDF: ' + (e.message || e);
+  }
+  save(); render();
+}
+
+function pickYear(){
+  const years = {};
+  for(const iso in state.days) years[iso.slice(0,4)] = (years[iso.slice(0,4)]||0) + 1;
+  const keys = Object.keys(years);
+  if(keys.length > 1 && state.year === 'all') state.year = keys.sort((a,b) => years[b]-years[a])[0];
+  if(keys.length === 1) state.year = 'all';
+}
+
+/* ---------- calc ---------- */
+function compute(){
+  const J = state.jornada;
+  const list = Object.keys(state.days).sort()
+    .filter(iso => state.year === 'all' || iso.startsWith(state.year))
+    .map(iso => {
+      const d = state.days[iso];
+      const raw = sumSessions(d);
+      const worked = d.override != null ? d.override : raw;
+      const flags = [...new Set(d.sessions.map(s => s.flag).filter(Boolean))];
+      if(d.status === 'count' && d.sessions.length === 1 && worked < J && J >= 360) flags.push('Un solo tramo');
+      let diff = 0, counted = false;
+      if(d.status === 'count'){ diff = worked - J; counted = true; }
+      else if(d.status === 'full'){ diff = 0; counted = true; }
+      const extra = state.mode === 'net' ? diff : Math.max(0, diff);
+      return { iso, d, raw, worked: d.status === 'full' ? Math.max(worked, J) : worked, diff, extra, counted, flags };
+    });
+  const tot = { worked: 0, expected: 0, days: 0, extra: 0, plus: 0, minus: 0, flags: 0, plusMin: 0, minusMin: 0 };
+  const months = {};
+  for(const r of list){
+    if(r.flags.length && r.d.status !== 'off' || (r.d.status === 'off' && r.flags.length && !r.d.manual)) tot.flags++;
+    if(!r.counted) continue;
+    const mk = r.iso.slice(0,7);
+    const m = months[mk] || (months[mk] = { worked: 0, expected: 0, days: 0, extra: 0 });
+    const w = r.d.status === 'full' ? J : r.worked;
+    tot.worked += w; tot.expected += J; tot.days++; tot.extra += r.extra;
+    m.worked += w; m.expected += J; m.days++; m.extra += r.extra;
+    if(r.diff > 0){ tot.plus++; tot.plusMin += r.diff; }
+    if(r.diff < 0){ tot.minus++; tot.minusMin += r.diff; }
+  }
+  return { list, tot, months };
+}
+
+/* ---------- render ---------- */
+function render(){
+  // controls
+  document.querySelectorAll('.tile').forEach(t => t.setAttribute('aria-pressed', t.dataset.h === state.jornadaSel ? 'true' : 'false'));
+  $('#customBox').classList.toggle('show', state.jornadaSel === 'custom');
+  if(state.jornadaSel === 'custom' && document.activeElement !== $('#customH')) $('#customH').value = hm(state.jornada);
+  document.querySelectorAll('input[name=mode]').forEach(r => r.checked = r.value === state.mode);
+  if(document.activeElement !== $('#worker')) $('#worker').value = state.worker || '';
+
+  const years = [...new Set(Object.keys(state.days).map(i => i.slice(0,4)))].sort();
+  const ysel = $('#year');
+  ysel.innerHTML = '<option value="all">Todo</option>' + years.map(y => `<option value="${y}">Año ${y}</option>`).join('');
+  if(state.year !== 'all' && !years.includes(state.year)) state.year = 'all';
+  ysel.value = state.year;
+
+  const has = Object.keys(state.days).length > 0;
+  $('#emptyMsg').classList.toggle('hidden', has);
+  ['#result','#monthsArea','#detailArea'].forEach(s => $(s).classList.toggle('hidden', !has));
+  if(!has) return;
+
+  const { list, tot, months } = compute();
+  const big = $('#bigNum');
+  big.textContent = fmt(tot.extra, true);
+  big.className = 'big ' + (tot.extra > 0 ? 'pos' : tot.extra < 0 ? 'neg' : '');
+  const who = state.worker ? ' de ' + state.worker : '';
+  $('#bigCap').textContent = (state.mode === 'net' ? 'horas extra en saldo neto' : 'horas extra sumando solo los excesos') + who + ', con jornada de ' + fmt(state.jornada).replace(' 00m','');
+  $('#fWorked').textContent = fmt(tot.worked);
+  $('#fExpected').textContent = fmt(tot.expected);
+  $('#fDays').textContent = tot.days;
+  $('#fPlus').textContent = tot.plus + '  (' + fmt(tot.plusMin, true) + ')';
+  $('#fMinus').textContent = tot.minus + '  (' + fmt(tot.minusMin, true) + ')';
+  $('#fFlags').textContent = tot.flags;
+
+  // months
+  const mk = Object.keys(months).sort();
+  let mt = '<thead><tr><th>Mes</th><th class="num">Días</th><th class="num">Trabajadas</th><th class="num">Esperadas</th><th class="num">Extra</th></tr></thead><tbody>';
+  for(const k of mk){
+    const m = months[k], [y, mo] = k.split('-');
+    mt += `<tr><td>${MES[+mo-1]} ${y}</td><td class="num">${m.days}</td><td class="num">${fmt(m.worked)}</td><td class="num">${fmt(m.expected)}</td><td class="num ${m.extra>0?'pos':m.extra<0?'neg':''}">${fmt(m.extra,true)}</td></tr>`;
+  }
+  mt += `<tr class="month"><td>Total</td><td class="num">${tot.days}</td><td class="num">${fmt(tot.worked)}</td><td class="num">${fmt(tot.expected)}</td><td class="num ${tot.extra>0?'pos':tot.extra<0?'neg':''}">${fmt(tot.extra,true)}</td></tr></tbody>`;
+  $('#monthTable').innerHTML = mt;
+  drawChart(mk, months);
+
+  // days
+  const only = $('#onlyFlags').checked;
+  let h = '<thead><tr><th>Fecha</th><th>Fichajes</th><th class="num">Horas</th><th class="num">Diferencia</th><th>Cómo cuenta</th></tr></thead><tbody>';
+  let lastM = '';
+  for(const r of list){
+    if(only && !r.flags.length) continue;
+    const m = r.iso.slice(0,7);
+    if(m !== lastM){ lastM = m; const [y,mo] = m.split('-'); h += `<tr class="month"><td colspan="5">${MES[+mo-1]} ${y}</td></tr>`; }
+    const dt = new Date(r.iso + 'T12:00:00');
+    const [y, mo, dd] = r.iso.split('-');
+    const sess = r.d.sessions.length
+      ? r.d.sessions.map(s => s.s == null ? fmt(s.m) : (clock(s.s) + '–' + (s.e == null ? '¿?' : clock(s.e)))).join(', ')
+      : (r.d.manual ? 'Añadido a mano' : '');
+    const fl = r.flags.map(f => `<span class="flag">${f}</span>`).join('');
+    const diffTxt = r.counted ? fmt(r.d.status === 'full' ? 0 : r.diff, true) : '–';
+    const cls = !r.counted ? '' : (r.diff > 0 && r.d.status === 'count' ? 'pos' : r.diff < 0 && r.d.status === 'count' ? 'neg' : '');
+    h += `<tr class="${r.d.status === 'off' ? 'off' : ''}">
+      <td>${WD[dt.getDay()]} ${dd}/${mo}/${y}</td>
+      <td class="sess">${sess}<div>${fl}</div></td>
+      <td class="num"><input class="hin ${r.d.override != null ? 'edited' : ''}" data-iso="${r.iso}" value="${hm(r.d.override != null ? r.d.override : r.raw)}" aria-label="Horas del ${dd}/${mo}"></td>
+      <td class="num ${cls}">${diffTxt}</td>
+      <td><select data-st="${r.iso}" aria-label="Cómo cuenta el ${dd}/${mo}">
+        <option value="count"${r.d.status==='count'?' selected':''}>Horas reales</option>
+        <option value="full"${r.d.status==='full'?' selected':''}>Jornada completa</option>
+        <option value="off"${r.d.status==='off'?' selected':''}>Excluir</option>
+      </select></td></tr>`;
+  }
+  h += '</tbody>';
+  $('#dayTable').innerHTML = h;
+}
+
+function drawChart(keys, months){
+  const svg = $('#chart');
+  const W = Math.max(svg.clientWidth || 560, keys.length * 46 + 60), H = 230, top = 20, bot = 34, left = 48;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.style.minWidth = W + 'px';
+  const vals = keys.map(k => months[k].extra / 60);
+  const max = Math.max(1, ...vals.map(Math.abs));
+  const hasNeg = vals.some(v => v < 0);
+  const zero = hasNeg ? top + (H - top - bot) / 2 : H - bot;
+  const scale = (hasNeg ? (H - top - bot) / 2 : (H - top - bot)) / max;
+  const bw = Math.min(34, (W - left - 10) / keys.length * 0.62);
+  const step = (W - left - 10) / keys.length;
+  let s = `<line x1="${left}" x2="${W-6}" y1="${zero}" y2="${zero}" stroke="var(--line)"/>`;
+  s += `<text x="${left-8}" y="${top+4}" text-anchor="end">${fmtH(max)}</text>`;
+  if(hasNeg) s += `<text x="${left-8}" y="${H-bot}" text-anchor="end">${fmtH(-max)}</text>`;
+  s += `<text x="${left-8}" y="${zero+4}" text-anchor="end">0</text>`;
+  keys.forEach((k, i) => {
+    const v = vals[i], x = left + i*step + (step-bw)/2, hgt = Math.abs(v)*scale;
+    const y = v >= 0 ? zero - hgt : zero;
+    const col = v >= 0 ? 'var(--plus)' : 'var(--minus)';
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(hgt, 1)}" rx="3" fill="${col}"><title>${k}: ${fmt(months[k].extra, true)}</title></rect>`;
+    s += `<text x="${x + bw/2}" y="${v >= 0 ? y - 5 : y + hgt + 12}" text-anchor="middle" style="fill:var(--ink);font-weight:600">${fmtH(v)}</text>`;
+    s += `<text x="${x + bw/2}" y="${H - 12}" text-anchor="middle">${MES[+k.slice(5)-1].slice(0,3)}</text>`;
+  });
+  svg.innerHTML = s;
+}
+function fmtH(v){ const r = Math.round(v*10)/10; return (r > 0 ? '+' : '') + String(r).replace('.', ',') + 'h'; }
+
+/* ---------- events ---------- */
+const drop = $('#drop'), fileIn = $('#file');
+drop.addEventListener('click', () => fileIn.click());
+drop.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileIn.click(); } });
+fileIn.addEventListener('change', () => { if(fileIn.files.length) handleFiles([...fileIn.files]); fileIn.value = ''; });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = [...e.dataTransfer.files].filter(f => /pdf$/i.test(f.name) || f.type === 'application/pdf'); if(f.length) handleFiles(f); });
+
+$('#pasteBtn').addEventListener('click', () => {
+  const n = parseLines($('#paste').value.split(/\r?\n/));
+  const st = $('#status'); st.classList.toggle('err', n === 0);
+  st.textContent = n ? 'Añadidos ' + n + ' tramos desde el texto pegado.' : 'No se ha reconocido ningún fichaje en el texto. Cada línea necesita una fecha y la hora de entrada y salida.';
+  if(n){ $('#paste').value = ''; pickYear(); }
+  save(); render();
+});
+
+document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => {
+  state.jornadaSel = t.dataset.h;
+  if(t.dataset.h !== 'custom') state.jornada = (+t.dataset.h) * 60;
+  else setTimeout(() => $('#customH').focus(), 0);
+  save(); render();
+}));
+$('#customH').addEventListener('input', e => { const v = parseHM(e.target.value); if(v && v > 0 && v <= 1440){ state.jornada = v; save(); render(); } });
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => { state.mode = r.value; save(); render(); }));
+$('#year').addEventListener('change', e => { state.year = e.target.value; save(); render(); });
+$('#worker').addEventListener('input', e => { state.worker = e.target.value; save(); render(); });
+$('#onlyFlags').addEventListener('change', render);
+
+$('#dayTable').addEventListener('change', e => {
+  const t = e.target;
+  if(t.dataset.iso){
+    const d = state.days[t.dataset.iso], v = parseHM(t.value);
+    if(t.value.trim() === '' || v === sumSessions(d)) d.override = null;
+    else if(v != null){ d.override = v; if(d.status === 'off') d.status = 'count'; }
+  }
+  if(t.dataset.st){ state.days[t.dataset.st].status = t.value; }
+  save(); render();
+});
+
+$('#addBtn').addEventListener('click', () => {
+  const iso = $('#addDate').value, v = parseHM($('#addH').value);
+  if(!iso || v == null){ $('#status').textContent = 'Para añadir un día indica la fecha y las horas (por ejemplo 8:00).'; return; }
+  const d = state.days[iso] || (state.days[iso] = { sessions: [], status: 'count', override: null, manual: true });
+  d.override = v; d.status = 'count'; d.manual = true;
+  $('#addDate').value = ''; $('#addH').value = '';
+  save(); render();
+});
+
+$('#clearBtn').addEventListener('click', () => {
+  if(!confirm('¿Borrar todos los fichajes cargados?')) return;
+  state.days = {}; state.year = 'all'; $('#status').textContent = '';
+  save(); render();
+});
+
+$('#copyBtn').addEventListener('click', async () => {
+  const { list, tot } = compute();
+  const rows = [['Fecha','Fichajes','Horas trabajadas','Diferencia','Cómo cuenta']];
+  for(const r of list){
+    const [y,mo,dd] = r.iso.split('-');
+    rows.push([`${dd}/${mo}/${y}`,
+      r.d.sessions.map(s => s.s == null ? hm(s.m) : clock(s.s)+'-'+(s.e==null?'?':clock(s.e))).join(' / '),
+      hm(r.worked), r.counted ? (r.diff < 0 ? '-' : '') + hm(Math.abs(r.d.status === 'full' ? 0 : r.diff)) : '',
+      {count:'Horas reales', full:'Jornada completa', off:'Excluido'}[r.d.status]]);
+  }
+  rows.push([]); rows.push(['Total horas extra', '', hm(tot.worked), (tot.extra<0?'-':'') + hm(Math.abs(tot.extra)), '']);
+  const txt = rows.map(r => r.join('\t')).join('\n');
+  let ok = false;
+  try{ await navigator.clipboard.writeText(txt); ok = true; }catch(e){
+    const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
+    try{ ok = document.execCommand('copy'); }catch(_){}
+    ta.remove();
+  }
+  $('#copyBtn').textContent = ok ? 'Copiado' : 'No se pudo copiar';
+  setTimeout(() => $('#copyBtn').textContent = 'Copiar para Excel', 1800);
+});
+
+window.addEventListener('resize', () => { if(Object.keys(state.days).length) render(); });
+
+load(); render();
+})();
+</script>
+</body>
+</html>
